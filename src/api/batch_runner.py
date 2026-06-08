@@ -210,7 +210,7 @@ def run_propose_batch(
 ) -> dict[str, dict[str, Any]]:
     """/propose 多波 batch：每一輪用前一輪結果塞 extra_context。
 
-    回傳 {id: {"rounds": [{round, text}, ...], "final": "..."}}
+    回傳 {id: {"rounds": [{round, text, usage}, ...], "final": "...", "final_usage": {...}}}
 
     注意：這裡不做 submit_now 提前交卷；所有題目都跑滿 5 輪才進交卷輪。
     原因是 batch 模式天生適合同步推進——不同題目 submit_now 時間不同
@@ -253,7 +253,13 @@ def run_propose_batch(
             custom_id = f"{qid}::r{round_num}"
             res = round_results.get(custom_id, {})
             text = res.get("text") or f"[ERROR round {round_num}] {res.get('error', 'missing')}"
-            histories[qid].append({"round": round_num, "text": text})
+            histories[qid].append({
+                "round": round_num,
+                "text": text,
+                # 保留每一輪收資訊輪的 usage，讓 estimate_batch_cost 能把
+                # /propose 五輪的 token 一起算進成本（先前只留 final_usage）。
+                "usage": res.get("usage", {}),
+            })
 
     # 最後一波：交卷輪 propose_final
     final_requests: list[dict[str, Any]] = []
@@ -296,12 +302,27 @@ def estimate_batch_cost(
 
     in_tok = 0
     out_tok = 0
-    for res in results.values():
-        usage = res.get("usage") if isinstance(res, dict) else None
-        if not usage:
-            continue
+
+    def _add(usage: Any) -> None:
+        nonlocal in_tok, out_tok
+        if not isinstance(usage, dict):
+            return
         in_tok += int(usage.get("input_tokens", 0) or 0)
         out_tok += int(usage.get("output_tokens", 0) or 0)
+
+    for res in results.values():
+        if not isinstance(res, dict):
+            continue
+        # 單次呼叫模式（check / restate / ...）：usage 在頂層。
+        _add(res.get("usage"))
+        # /propose 模式：交卷輪的 usage + 每一輪收資訊輪的 usage，
+        # 否則做最多次呼叫的模式會被算成 0 成本。
+        _add(res.get("final_usage"))
+        rounds = res.get("rounds")
+        if isinstance(rounds, list):
+            for r in rounds:
+                if isinstance(r, dict):
+                    _add(r.get("usage"))
 
     usd = (in_tok / 1_000_000) * price["input"] + (out_tok / 1_000_000) * price["output"]
     return {

@@ -2464,20 +2464,11 @@ def main(argv: list[str] | None = None) -> int:
         _print("輸入 /help 查看所有指令；輸入 /exit 離開。")
         _print("-" * 48)
 
-    # P1-2：依 TOFU_BACKEND 環境變數決定後端。
-    # 預設為 "claude"。支援 "openai"（含 DeepSeek 相容模式）。
-    backend = os.environ.get("TOFU_BACKEND", "claude").lower()
-    if backend == "openai":
-        from src.api.openai_client import OpenAIClient
-        client = OpenAIClient(notifier=_print)
-    else:
-        client = LLMClient(notifier=_print)
+    # 公測版後端：Claude（推薦 Haiku）。沒有 API key 時自動進入離線 fallback。
+    client = LLMClient(notifier=_print)
 
     if client.fallback_mode:
-        if backend == "openai":
-            _print("[逗福Tofu] 目前為離線模式，設定 OPENAI_API_KEY 後可獲得 AI 驅動的回應。")
-        else:
-            _print("[逗福Tofu] 目前為離線模式，設定 CLAUDE_API_KEY 後可獲得 AI 驅動的回應。")
+        _print("[逗福Tofu] 目前為離線模式，設定 CLAUDE_API_KEY 後可獲得 AI 驅動的回應。")
 
     # 滿意度問答節奏降低：v3.0 從每 3 次改為每 10 次
     global SATISFACTION_INTERVAL

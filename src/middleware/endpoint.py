@@ -42,7 +42,7 @@ import sys
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 from src.utils.tokenizer import tokenize as _tokenize
 
@@ -337,21 +337,29 @@ class EndpointStore:
             if not isinstance(verify, list):
                 raise ValueError("post-write verification failed: not a list")
 
-    def _write_atomic_jsonl(self, data: list[dict[str, Any]]) -> None:
-        """JSONL 的整檔原子覆寫（用於 mark_hit / apply_cooldown / clear）。"""
+    def _write_atomic_jsonl_nolock(self, data: list[dict[str, Any]]) -> None:
+        """JSONL 整檔原子覆寫的核心：寫 .tmp 後 rename。
+
+        呼叫端必須已持有 ``.lock``。供 `_rewrite_locked` 在同一鎖區間內
+        完成 read-modify-write 時使用，避免巢狀重複取鎖。
+        """
         tmp_path = self.path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            for row in data:
+                if not isinstance(row, dict):
+                    continue
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            try:
+                f.flush()
+                os.fsync(f.fileno())
+            except (AttributeError, OSError):
+                pass
+        os.replace(tmp_path, self.path)
+
+    def _write_atomic_jsonl(self, data: list[dict[str, Any]]) -> None:
+        """JSONL 的整檔原子覆寫（用於 clear 等不需 read-modify-write 的情境）。"""
         with _acquire_path_lock(self.path):
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                for row in data:
-                    if not isinstance(row, dict):
-                        continue
-                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
-                try:
-                    f.flush()
-                    os.fsync(f.fileno())
-                except (AttributeError, OSError):
-                    pass
-            os.replace(tmp_path, self.path)
+            self._write_atomic_jsonl_nolock(data)
 
     def _write(self, data: list[dict[str, Any]]) -> None:
         """整檔覆寫。jsonl 與 json 都走原子路徑，差別在儲存格式。"""
@@ -359,6 +367,33 @@ class EndpointStore:
             self._write_atomic_jsonl(data)
         else:
             self._write_atomic_legacy(data)
+
+    def _rewrite_locked(
+        self,
+        mutate: Callable[[list[dict[str, Any]]], tuple[bool, Any]],
+    ) -> Any:
+        """在單一鎖區間內完成 read-modify-write，回傳 mutate 的結果值。
+
+        ``mutate(data)`` 就地修改 ``data`` 並回傳 ``(changed, result)``；
+        只有 ``changed`` 為真時才寫回磁碟。
+
+        jsonl 格式下，整段「讀檔 → 改 → 覆寫」共用同一把 ``.lock``，因此
+        mark_hit / apply_cooldown 不會再用過期快照蓋掉並行 ``append_*`` 寫入的
+        新紀錄（修正先讀後鎖的 read-modify-write race）。legacy json 沿用既有
+        的讀後原子覆寫路徑。
+        """
+        if self._format == "jsonl":
+            with _acquire_path_lock(self.path):
+                data = self._read_jsonl()
+                changed, result = mutate(data)
+                if changed:
+                    self._write_atomic_jsonl_nolock(data)
+                return result
+        data = self._read_legacy_json()
+        changed, result = mutate(data)
+        if changed:
+            self._write_atomic_legacy(data)
+        return result
 
     def _append_row(self, row: dict[str, Any]) -> None:
         """單筆 append。
@@ -472,20 +507,21 @@ class EndpointStore:
             return 0
         ids = set(endpoint_ids)
         now_iso = _now_iso()
-        data = self._read()
-        touched = 0
-        for row in data:
-            if row.get("endpoint_id") in ids:
-                _ensure_cooldown_fields(row)
-                row["last_referenced"] = now_iso
-                row["reference_count"] = int(row.get("reference_count") or 0) + 1
-                row["round_last_referenced"] = int(current_round)
-                if row.get("status") == "pending_confirmation":
-                    row["status"] = "active"
-                touched += 1
-        if touched:
-            self._write(data)
-        return touched
+
+        def _mutate(data: list[dict[str, Any]]) -> tuple[bool, int]:
+            touched = 0
+            for row in data:
+                if row.get("endpoint_id") in ids:
+                    _ensure_cooldown_fields(row)
+                    row["last_referenced"] = now_iso
+                    row["reference_count"] = int(row.get("reference_count") or 0) + 1
+                    row["round_last_referenced"] = int(current_round)
+                    if row.get("status") == "pending_confirmation":
+                        row["status"] = "active"
+                    touched += 1
+            return touched > 0, touched
+
+        return self._rewrite_locked(_mutate)
 
     def apply_cooldown(
         self,
@@ -503,53 +539,54 @@ class EndpointStore:
         """
         reference_time = now or datetime.now(timezone.utc)
         cutoff_time = reference_time - timedelta(days=days_threshold)
-        data = self._read()
-        changed = 0
-        for row in data:
-            _ensure_cooldown_fields(row)
-            # 只對 start 端點（真正帶知識的）跑冷卻
-            if row.get("type") != "start":
-                continue
-            if row.get("status") != "active":
-                continue
 
-            last_ref = row.get("last_referenced")
-            round_last = row.get("round_last_referenced")
+        def _mutate(data: list[dict[str, Any]]) -> tuple[bool, int]:
+            changed = 0
+            for row in data:
+                _ensure_cooldown_fields(row)
+                # 只對 start 端點（真正帶知識的）跑冷卻
+                if row.get("type") != "start":
+                    continue
+                if row.get("status") != "active":
+                    continue
 
-            # 沒被命中過 → 用 append 時間推 / 0 輪推
-            time_based_stale = False
-            last_ref_time: datetime | None = None
-            if last_ref:
-                try:
-                    last_ref_time = datetime.fromisoformat(last_ref)
-                except (TypeError, ValueError):
-                    last_ref_time = None
-            if last_ref_time is None:
-                # 沒被命中過：看端點自己的 timestamp
-                ts_str = row.get("timestamp")
-                if ts_str:
+                last_ref = row.get("last_referenced")
+                round_last = row.get("round_last_referenced")
+
+                # 沒被命中過 → 用 append 時間推 / 0 輪推
+                time_based_stale = False
+                last_ref_time: datetime | None = None
+                if last_ref:
                     try:
-                        last_ref_time = datetime.fromisoformat(ts_str)
+                        last_ref_time = datetime.fromisoformat(last_ref)
                     except (TypeError, ValueError):
                         last_ref_time = None
-            if last_ref_time is not None and last_ref_time < cutoff_time:
-                time_based_stale = True
+                if last_ref_time is None:
+                    # 沒被命中過：看端點自己的 timestamp
+                    ts_str = row.get("timestamp")
+                    if ts_str:
+                        try:
+                            last_ref_time = datetime.fromisoformat(ts_str)
+                        except (TypeError, ValueError):
+                            last_ref_time = None
+                if last_ref_time is not None and last_ref_time < cutoff_time:
+                    time_based_stale = True
 
-            round_based_stale = False
-            # 沒被命中過（round_last 為 None）→ 只有時間門檻生效，
-            # 不走輪數門檻。否則 global round 一超過 50，所有剛建立、
-            # 從未被 hit 的端點都會立刻被標 pending（#PR review P1）。
-            if round_last is not None:
-                baseline_round = int(round_last)
-                if int(current_round) - baseline_round > rounds_threshold:
-                    round_based_stale = True
+                round_based_stale = False
+                # 沒被命中過（round_last 為 None）→ 只有時間門檻生效，
+                # 不走輪數門檻。否則 global round 一超過 50，所有剛建立、
+                # 從未被 hit 的端點都會立刻被標 pending（#PR review P1）。
+                if round_last is not None:
+                    baseline_round = int(round_last)
+                    if int(current_round) - baseline_round > rounds_threshold:
+                        round_based_stale = True
 
-            if time_based_stale or round_based_stale:
-                row["status"] = "pending_confirmation"
-                changed += 1
-        if changed:
-            self._write(data)
-        return changed
+                if time_based_stale or round_based_stale:
+                    row["status"] = "pending_confirmation"
+                    changed += 1
+            return changed > 0, changed
+
+        return self._rewrite_locked(_mutate)
 
     def current_round(self) -> int:
         """目前的互動輪數——取已完成事件數 + 1。

@@ -30,7 +30,6 @@ from src.api.claude_client import (
     _fallback_analyze_deviation,
     _fallback_execute_task,
 )
-from src.api.openai_client import OpenAIClient
 from src.middleware import baseline as baseline_mod
 from src.middleware import confirmation as confirm_mod
 from src.middleware.endpoint import EndpointStore
@@ -426,42 +425,11 @@ class TrajectoryConvergenceTests(unittest.TestCase):
 
 
 # ----------------------------------------------------------------------
-# P1-2：BaseLLMClient 抽象介面 + OpenAIClient 骨架
+# P1-2：BaseLLMClient 抽象介面
 # ----------------------------------------------------------------------
 class BaseClientInterfaceTests(unittest.TestCase):
     def test_llm_client_is_base_subclass(self):
         self.assertTrue(issubclass(LLMClient, BaseLLMClient))
-
-    def test_openai_client_is_base_subclass(self):
-        self.assertTrue(issubclass(OpenAIClient, BaseLLMClient))
-
-    def test_openai_client_fallback_without_key(self):
-        # 清乾淨 OPENAI_API_KEY
-        saved = os.environ.pop("OPENAI_API_KEY", None)
-        try:
-            client = OpenAIClient(api_key=None)
-            self.assertTrue(client.fallback_mode)
-            # generate_restate 走 fallback
-            result = client.generate_restate(
-                user_input="辦生日派對",
-                baseline_summary={},
-                allowed_categories=["budget", "time", "venue"],
-            )
-            self.assertIn("restate_text", result)
-            self.assertTrue(len(result["gap_categories"]) > 0)
-        finally:
-            if saved is not None:
-                os.environ["OPENAI_API_KEY"] = saved
-
-    def test_openai_client_analyze_deviation_fallback(self):
-        saved = os.environ.pop("OPENAI_API_KEY", None)
-        try:
-            client = OpenAIClient(api_key=None)
-            out = client.analyze_deviation("辦派對", "已完成", "過短")
-            self.assertIn("Zone B", out)
-        finally:
-            if saved is not None:
-                os.environ["OPENAI_API_KEY"] = saved
 
 
 # ----------------------------------------------------------------------

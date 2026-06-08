@@ -242,6 +242,8 @@ python -m pytest tests/ -v
 3. 實際行為
 4. 錯誤訊息（如果有）
 
+不方便公開的問題，可來信 [support@momo-chao.com](mailto:support@momo-chao.com)。
+
 ---
 
 *逗福Tofu。問對問題，才有對的答案。*

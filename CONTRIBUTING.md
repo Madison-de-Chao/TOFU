@@ -12,6 +12,8 @@
 4. 錯誤訊息（如果有的話）
 5. 你的環境（作業系統、Python 版本）
 
+不方便公開的問題，可來信 [support@momo-chao.com](mailto:support@momo-chao.com)。
+
 ## 提交程式碼
 
 1. Fork 這個 repo
@@ -22,8 +24,8 @@
 ## 開發環境
 
 ```bash
-git clone https://github.com/你的帳號/tofu_mvp_model_b.git
-cd tofu_mvp_model_b
+git clone https://github.com/madison-de-chao/tofu.git
+cd tofu
 pip install -r requirements.txt
 pip install jieba
 python -m pytest tests/ -v
@@ -45,4 +47,4 @@ python -m pytest tests/ -v
 
 ---
 
-有任何問題歡迎開 Issue 討論。
+有任何問題歡迎開 Issue 討論，或來信 [support@momo-chao.com](mailto:support@momo-chao.com)。

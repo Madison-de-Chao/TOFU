@@ -3,8 +3,8 @@
 > **問對問題，才有對的答案。**
 > Ask the right question before getting the right answer.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-608%20passing-brightgreen)]()
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen)]()
 [![Cost](https://img.shields.io/badge/cost-US%240.01%2Finteraction-blue)]()
 
 ---
@@ -48,7 +48,7 @@ Tofu is a cognitive middleware layer that sits between you and your AI. Before t
 | 實測互動 | 244 筆，零錯誤 |
 | 總費用 | US$2.57（約 NT$80） |
 | 每次互動成本 | 約 US$0.01（約 NT$0.3） |
-| 測試通過 | 608 項 |
+| 測試通過 | 656 項 |
 | 推薦模型 | Claude Haiku（最便宜） |
 
 ### 小模型打贏大模型
@@ -111,7 +111,7 @@ python src/main.py
 
 ```bash
 python -m pytest tests/ -v
-# 預期：608 項測試全部通過
+# 預期：656 項測試全部通過
 ```
 
 ---
@@ -218,6 +218,14 @@ python -m pytest tests/ -v
 
 逗福的核心發現：**決定品質的是問對問題的流程，不是模型的大小。** 最便宜的模型加上正確的框架，打贏最貴的旗艦模型。
 
+## 白皮書
+
+逗福Tofu 的完整理論基礎、九個治理機制、五大憲法層與測試數據，見白皮書：
+
+📄 [逗福Tofu 白皮書 v1.0（PDF，53 頁）](docs/逗福Tofu_白皮書_v1.0.pdf)
+
+白皮書同樣採用 Apache License 2.0 授權。
+
 ## 體系歸屬
 
 逗福Tofu 是[元壹宇宙 YuanYi Universe](https://yyuniverse.com) 的第一個工程化應用。
@@ -230,7 +238,10 @@ python -m pytest tests/ -v
 
 ## 授權
 
-[MIT License](LICENSE) — 自由使用、修改、散布。
+[Apache License 2.0](LICENSE) — 自由使用、修改、散布、商用。
+唯一條件：保留著作權聲明與授權副本，散布修改版時標註所做變更。
+
+程式碼與白皮書文件均採用 Apache 2.0 授權。
 
 ---
 
@@ -248,4 +259,4 @@ python -m pytest tests/ -v
 
 *逗福Tofu。問對問題，才有對的答案。*
 *免費開源。*
-*© 2024-2026 趙偉辰 / 超烜創意 Maison de Chao*
+*© 2024-2026 趙偉辰 / 超烜創意 Maison de Chao｜Apache License 2.0*

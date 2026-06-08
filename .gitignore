@@ -5,9 +5,11 @@
 
 # User Data (memories stay local)
 data/endpoints.json
+data/endpoints.jsonl
 data/user_profile.json
 data/*.bak
 data/*.tmp
+data/words/
 
 # Python
 __pycache__/

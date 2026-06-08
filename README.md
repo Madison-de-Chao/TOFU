@@ -88,8 +88,8 @@ Tofu is a cognitive middleware layer that sits between you and your AI. Before t
 
 ```bash
 # 1. 下載
-git clone https://github.com/momo-chao/tofu_mvp_model_b.git
-cd tofu_mvp_model_b
+git clone https://github.com/madison-de-chao/tofu.git
+cd tofu
 
 # 2. 安裝套件
 pip install -r requirements.txt

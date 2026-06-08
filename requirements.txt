@@ -1,0 +1,14 @@
+# TOFU 公測版依賴
+#
+# 必要依賴：
+python-dotenv>=1.0.0
+jieba>=0.42.1
+# v0.6 PR-E：endpoints.jsonl append-only 寫入需要跨 process 的檔案鎖。
+# filelock 缺席時 EndpointStore 會退回 thread-only fallback（單 process 仍正確），
+# 但多 process 場景（例如 eval + 主程式並跑）就不再保證原子性，建議安裝。
+filelock>=3.12.0
+
+# 可選依賴：
+# anthropic 只在使用 AI 驅動模式時需要。
+# 沒有安裝時 TOFU 會自動進入離線 fallback 模式。
+anthropic>=0.39.0

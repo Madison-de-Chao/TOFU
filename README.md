@@ -178,6 +178,10 @@ python -m pytest tests/ -v
 
 記憶儲存在你本機的 `data/` 資料夾，不上傳。換電腦只要複製 `data/` 資料夾。換 AI 模型不丟記憶。
 
+### 模型後端
+
+目前內建實作 **Claude（Anthropic）** 後端，推薦 Claude Haiku。底層採 `BaseLLMClient` 抽象介面設計，**模型中立、可自行串接其他模型**——只要實作這個介面，就能接上 OpenAI、DeepSeek 或任何相容後端，記憶與框架完全不需更動。未設定 API key 時自動進入離線 fallback 模式。
+
 ---
 
 ## 已知限制

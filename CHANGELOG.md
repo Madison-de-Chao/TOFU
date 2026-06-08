@@ -25,7 +25,7 @@
 - 244 筆實測互動，零錯誤，總費用 US$2.57
 
 **支援**
-- Claude Haiku（推薦）、Claude Opus、OpenAI 相容 API
+- 內建 Claude Haiku（推薦）、Claude Opus 後端；採模型中立架構（BaseLLMClient），可自行串接其他模型
 - jieba 中文分詞（選裝）
 - Windows / macOS / Linux
 

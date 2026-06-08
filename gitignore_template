@@ -1,0 +1,51 @@
+# API Keys & Secrets
+.env
+*.key
+*.secret
+
+# User Data (memories stay local)
+data/endpoints.json
+data/user_profile.json
+data/*.bak
+data/*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+*.log
+
+# Internal development docs (not for public)
+docs/internal/
+*_交接*.md
+*_校準文件*.md
+*_頭腦資料庫*.md
+*_開發紀錄*.md

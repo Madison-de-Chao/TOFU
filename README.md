@@ -7,6 +7,8 @@
 [![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen)]()
 [![Cost](https://img.shields.io/badge/cost-US%240.01%2Finteraction-blue)]()
 
+**🌐 線上版 — 不用安裝，打開瀏覽器就能用：[tofu.maisondechao.com](https://tofu.maisondechao.com/)**
+
 ---
 
 ## 這是什麼？
@@ -77,6 +79,8 @@ Tofu is a cognitive middleware layer that sits between you and your AI. Before t
 ---
 
 ## 安裝
+
+> 只想快速體驗？直接用 **[線上版 tofu.maisondechao.com](https://tofu.maisondechao.com/)**，免安裝、免設定。以下步驟適合想在本機跑、或自行串接模型的使用者。
 
 ### 系統需求
 
@@ -232,7 +236,7 @@ python -m pytest tests/ -v
 - **偏好提取率偏低**：244 筆互動提取到 45 個偏好（18.4%），隱式偏好是結構性難題
 - **偏好清單可能有重複條目**：去重功能開發中
 - **長記憶截斷**：端點超過 250 筆時，早期的具體細節會被壓縮
-- **介面為 CLI**：目前是命令列操作，桌面版和網頁版製作中
+- **介面為 CLI**：本機版目前是命令列操作（網頁版已上線 [tofu.maisondechao.com](https://tofu.maisondechao.com/)，桌面版製作中）
 - **英文停用詞覆蓋不完整**：英文場景下有噪音
 - **未經大規模使用者驗證**：目前數據來自單一開發者的密集測試
 
@@ -244,7 +248,7 @@ python -m pytest tests/ -v
 
 近期：
 - [ ] 桌面版（一鍵安裝，不需要 Python）
-- [ ] 網頁版（瀏覽器直接使用）
+- [x] 網頁版（瀏覽器直接使用）— 已上線 [tofu.maisondechao.com](https://tofu.maisondechao.com/)
 - [ ] 偏好去重與結構化
 - [ ] 補位提問去重優化
 

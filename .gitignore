@@ -54,3 +54,4 @@ docs/internal/
 eval/sav/results/*_raw.jsonl
 eval/sav/results/summary.json
 eval/sav/summary.json
+_profile_run/

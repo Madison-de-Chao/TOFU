@@ -51,3 +51,6 @@ docs/internal/
 *_校準文件*.md
 *_頭腦資料庫*.md
 *_開發紀錄*.md
+eval/sav/results/*_raw.jsonl
+eval/sav/results/summary.json
+eval/sav/summary.json

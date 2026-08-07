@@ -34,6 +34,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 try:
+    # 先載入 tokenizer 觸發繁中大詞典設定（jieba.set_dictionary 是全域狀態，
+    # 必須在第一次切詞前生效）。word_tagger 可能被獨立 import，不能假設
+    # tokenizer 已經先被載入。
+    from src.utils import tokenizer as _tofu_tokenizer  # noqa: F401
     import jieba  # type: ignore
 
     _JIEBA_AVAILABLE = True

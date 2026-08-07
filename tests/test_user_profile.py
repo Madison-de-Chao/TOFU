@@ -264,6 +264,52 @@ class PreferenceExtractionTests(unittest.TestCase):
         ])
         self.assertTrue(any(p["type"] == "explicit" for p in prefs))
 
+    def test_exclusion_not_triggered_by_yes_no_question(self):
+        """v0.8 回歸：「要不要」是別人問使用者的句型，不是排除偏好。
+
+        修復前「媽問我要不要換車」會因子字串比對命中「不要」，把被詢問
+        的事項存成 exclusion（實測 50 輪的 4 條偏好中 2 條由此而來）。"""
+        prefs = extract_preferences([
+            {"user_input": "媽問我要不要換車，我說先等等。"},
+            {"user_input": "同事問我要不要一起報名那個戶外活動。"},
+            {"user_input": "這件事不要緊，先處理別的。"},
+        ])
+        self.assertEqual([p for p in prefs if p["type"] == "exclusion"], [])
+
+    def test_exclusion_still_triggered_by_genuine_negation(self):
+        """防護不能誤傷句首/真正的否定表達。"""
+        for text in ["不要太辣的東西", "我不想再排隊了", "我不喜歡人多的場合"]:
+            prefs = extract_preferences([{"user_input": text}])
+            self.assertTrue(
+                any(p["type"] == "exclusion" for p in prefs),
+                f"應提取為 exclusion：{text}",
+            )
+
+    def test_exclusion_item_is_self_contained(self):
+        """v0.8 回歸：exclusion 的 item 必須自帶否定詞，語義自足。
+
+        修復前「避免踩到箱子」會存成「踩到箱子」——單看 item 文字
+        語義相反，只靠 [exclusion] 標記承載否定。"""
+        prefs = extract_preferences([
+            {"user_input": "我改走另一邊繞路，避免踩到或弄倒那些箱子。"},
+        ])
+        exclusion = [p for p in prefs if p["type"] == "exclusion"]
+        self.assertTrue(exclusion)
+        self.assertTrue(exclusion[0]["item"].startswith("避免"))
+
+    def test_domains_filter_function_words(self):
+        """v0.8 回歸：興趣領域只留名詞性詞。
+
+        修復前「這樣」「比較」「突然」這類功能詞會佔滿榜單。"""
+        domains = extract_domains([
+            {"user_input": "突然覺得這樣比較好，還是先把報表做完。"},
+            {"user_input": "下班後去那家咖啡店坐一下，報表明天再說。"},
+        ])
+        names = {d["name"] for d in domains}
+        self.assertIn("報表", names)
+        for junk in ("這樣", "比較", "突然", "還是", "那家"):
+            self.assertNotIn(junk, names)
+
     def test_slice_indices_correct_with_unicode_case_change(self):
         # 回歸測試:Turkish 大寫 İ (U+0130) 的 .lower() 會變成 2 個
         # codepoint (i + U+0307 combining dot),會移動後續字元的索引。

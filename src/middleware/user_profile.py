@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.utils.tokenizer import tokenize as _tokenize
+from src.utils.tokenizer import tokenize_nouns as _tokenize_nouns
 
 
 # ----------------------------------------------------------------------
@@ -689,6 +690,17 @@ _EXCLUSION_INDICATORS = [
     "don't want", "not a fan", "were not my thing",
 ]
 
+# 中文指標詞的邊界防護。中文沒有空白詞界，純子字串比對會把
+# 「媽問我『要不要』換車」「這件事『不要緊』」誤判成排除偏好——
+# 而「要不要」幾乎都出現在別人問使用者的句子裡，切出來的是被詢問的
+# 事項，不是使用者的偏好（v0.8 實測 50 輪互動的 4 條偏好中 2 條由此而來）。
+# 用負向斷言排除這些常見的黏著情境；沒列在這裡的指標詞維持原樣。
+_GUARDED_INDICATOR_PATTERNS: dict[str, str] = {
+    "不要": r"(?<!要)不要(?!緊|臉)",   # 排除「要不要」「不要緊」「不要臉」
+    "不想": r"(?<!想)不想",            # 排除「想不想」
+    "不喜歡": r"(?<!喜)不喜歡",        # 排除「喜不喜歡」
+}
+
 
 def _compile_indicator_patterns(
     indicators: list[str],
@@ -700,8 +712,15 @@ def _compile_indicator_patterns(
     2. 在 extract_preferences 中透過 match.start()/match.end() 直接拿到
        原始 text 的 match span,避免 Unicode case-folding 改變碼位長度
        (例:Turkish dotted 大寫 I)造成切片索引錯位。
+
+    列在 _GUARDED_INDICATOR_PATTERNS 的指標詞改用帶邊界防護的 regex。
     """
-    return [(kw, re.compile(re.escape(kw), re.IGNORECASE)) for kw in indicators]
+    compiled: list[tuple[str, re.Pattern[str]]] = []
+    for kw in indicators:
+        guarded = _GUARDED_INDICATOR_PATTERNS.get(kw)
+        pattern = guarded if guarded is not None else re.escape(kw)
+        compiled.append((kw, re.compile(pattern, re.IGNORECASE)))
+    return compiled
 
 
 _EXPLICIT_PATTERNS = _compile_indicator_patterns(_EXPLICIT_INDICATORS)
@@ -860,7 +879,13 @@ def classify_context_need(interactions: list[dict]) -> str:
 # P0-4：興趣領域與偏好清單提取
 # ----------------------------------------------------------------------
 def extract_domains(interactions: list[dict]) -> list[dict]:
-    """用 jieba 斷詞提取興趣領域。按 mention_count 排序。"""
+    """用 jieba 詞性標註提取興趣領域（只留名詞性詞），按 mention_count 排序。
+
+    v0.8 修正：改用 tokenize_nouns。一般 tokenize 保留所有詞供檢索比對，
+    但興趣領域不過濾詞性的話，「放在」「這樣」「突然」這類功能詞會佔滿
+    榜單（實測 50 輪的前 25 名中虛詞佔八成），榜單就失去「這個人關心什麼」
+    的意義。
+    """
     from collections import Counter
     word_counter: Counter[str] = Counter()
 
@@ -868,7 +893,7 @@ def extract_domains(interactions: list[dict]) -> list[dict]:
         text = item.get("user_input", "")
         if not text:
             continue
-        tokens = _tokenize(text)
+        tokens = _tokenize_nouns(text)
         word_counter.update(tokens)
 
     domains = []
@@ -984,8 +1009,13 @@ def extract_preferences(interactions: list[dict]) -> list[dict]:
                 start = max(0, idx - 10)
                 end = min(len(text), kw_end + 50)
                 context = text[start:end]
-                item_text = text[kw_end:].strip()
-                if item_text:
+                # exclusion 的 item 從指標詞本身開始切（idx 而非 kw_end），
+                # 讓否定詞留在 item 內：「避免踩到箱子」「不喜歡人多的場合」。
+                # 只切右邊會存出「踩到箱子」這種語義相反的條目——下游雖有
+                # [exclusion] 標記，但 item 文字必須自足，不能依賴每個
+                # 消費端都記得看標記。
+                item_text = text[idx:].strip()
+                if len(item_text) > len(match.group(0)):
                     item_text = _extract_preference_item(item_text)
                     preferences.append({
                         "item": item_text,

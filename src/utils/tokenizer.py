@@ -8,8 +8,10 @@ jieba 未安裝時不會讓整個程式崩潰——降級回 2-gram 並印警告
 
 from __future__ import annotations
 
+import os
 import re
 import sys
+from pathlib import Path
 
 # 外來語與特殊複合詞表：jieba 預設詞典會拆錯的常用詞。
 # 邏輯鏈 v0.3 第二層規則：外來語保留常用譯名不拆字。
@@ -110,12 +112,31 @@ _LOANWORDS = [
     "加侖",         # gallon            → ['加','侖']
 ]
 
+# 繁中大詞典：jieba 內建 dict.txt 以簡體語料為主，直接切繁體會產生
+# 「這禮/拜」「電費帳/單寄來」這類跨詞界碎片，污染興趣領域統計，
+# 也拉低 top-k 檢索的詞彙重疊率。repo 內建 jieba 官方 dict.txt.big
+# （繁簡合一，MIT 授權），存在即自動啟用。
+#
+# 環境變數 TOFU_JIEBA_DICT 可覆寫：
+#   - 指向其他詞典檔路徑 → 用該詞典
+#   - 設為 "default"      → 強制用 jieba 內建詞典（跳過 dict.txt.big）
+#
+# 成本：首次切詞多 ~2-3 秒建構前綴樹（jieba 懶載入 + 有磁碟快取），
+# 之後無差異。
+_BIG_DICT_PATH = Path(__file__).resolve().parents[2] / "resources" / "jieba" / "dict.txt.big"
+
 # jieba 可選載入：未安裝時降級回 2-gram
 _jieba = None
 try:
     import jieba
     _jieba = jieba
+    _dict_override = os.environ.get("TOFU_JIEBA_DICT", "")
+    if _dict_override and _dict_override.lower() != "default":
+        _jieba.set_dictionary(_dict_override)
+    elif not _dict_override and _BIG_DICT_PATH.is_file():
+        _jieba.set_dictionary(str(_BIG_DICT_PATH))
     # 把外來語表註冊進 jieba，避免被切碎（邏輯鏈 v0.3 第二層規則）
+    # add_word 必須在 set_dictionary 之後——換詞典會重置使用者詞表。
     for _word in _LOANWORDS:
         _jieba.add_word(_word)
 except ImportError:
@@ -276,4 +297,39 @@ def tokenize(text: str, min_token_len: int = 2) -> list[str]:
             continue
         result.append(tok)
 
+    return result
+
+
+# 興趣領域用的名詞性詞性標記：
+#   n* — 名詞族（n 一般 / nr 人名 / ns 地名 / nt 機構 / nz 專名）
+#   vn — 動名詞（「繞路」「規劃」這類事件名）
+#   eng — 英文詞
+_NOUNISH_FLAG_PREFIXES = ("n", "vn", "eng")
+
+
+def tokenize_nouns(text: str, min_token_len: int = 2) -> list[str]:
+    """名詞性斷詞——興趣領域（domains）專用。
+
+    一般 tokenize 保留所有實/虛詞供檢索比對；興趣領域若不過濾詞性，
+    「放在」「這樣」「突然」「比較」這類功能詞會佔滿榜單（v0.8 實測
+    50 輪互動的 domains 前 25 名中虛詞佔八成）。此函式用 jieba 詞性
+    標註只保留名詞族 / 動名詞 / 英文詞。
+
+    jieba 不可用時退回一般 tokenize（維持舊行為，不多做假設）。
+    """
+    if not text:
+        return []
+    if _jieba is None:
+        return tokenize(text, min_token_len=min_token_len)
+
+    import jieba.posseg as _pseg
+
+    result: list[str] = []
+    for pair in _pseg.lcut(text.lower()):
+        word, flag = pair.word, pair.flag
+        if not any(flag.startswith(p) for p in _NOUNISH_FLAG_PREFIXES):
+            continue
+        if not _should_keep_token(word, min_token_len=min_token_len):
+            continue
+        result.append(word)
     return result

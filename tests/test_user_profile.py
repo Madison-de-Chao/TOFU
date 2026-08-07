@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from datetime import datetime, timedelta, timezone
 
+from src.utils import tokenizer as _tokenizer_mod
 from src.middleware.user_profile import (
     ProfileStore,
     _default_profile,
@@ -297,6 +298,8 @@ class PreferenceExtractionTests(unittest.TestCase):
         self.assertTrue(exclusion)
         self.assertTrue(exclusion[0]["item"].startswith("避免"))
 
+    @unittest.skipIf(_tokenizer_mod._jieba is None,
+                     "jieba 未安裝時 tokenize_nouns 走 2-gram 降級，無詞性可過濾")
     def test_domains_filter_function_words(self):
         """v0.8 回歸：興趣領域只留名詞性詞。
 
@@ -309,6 +312,21 @@ class PreferenceExtractionTests(unittest.TestCase):
         self.assertIn("報表", names)
         for junk in ("這樣", "比較", "突然", "還是", "那家"):
             self.assertNotIn(junk, names)
+
+    @unittest.skipIf(_tokenizer_mod._jieba is None,
+                     "jieba 未安裝時 tokenize_nouns 走 2-gram 降級，無詞性可過濾")
+    def test_domains_keep_registered_loanwords(self):
+        """v0.8 回歸（Codex review P1）：外來語不能被詞性過濾誤殺。
+
+        add_word 不給 tag 的話 posseg 標成 'x'，大詞典裡沒有的外來語
+        （拿鐵、拉麵…）會整批從 domains 消失。"""
+        domains = extract_domains([
+            {"user_input": "我每天早上都要喝一杯拿鐵。"},
+            {"user_input": "中午吃了拉麵，湯頭不錯。"},
+        ])
+        names = {d["name"] for d in domains}
+        self.assertIn("拿鐵", names)
+        self.assertIn("拉麵", names)
 
     def test_slice_indices_correct_with_unicode_case_change(self):
         # 回歸測試:Turkish 大寫 İ (U+0130) 的 .lower() 會變成 2 個

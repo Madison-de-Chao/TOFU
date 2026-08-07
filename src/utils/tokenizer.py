@@ -132,13 +132,28 @@ try:
     _jieba = jieba
     _dict_override = os.environ.get("TOFU_JIEBA_DICT", "")
     if _dict_override and _dict_override.lower() != "default":
-        _jieba.set_dictionary(_dict_override)
+        # 覆寫路徑不存在時不能讓 import 直接炸掉（set_dictionary 會拋例外，
+        # 連帶所有依賴 tokenizer 的模組都無法載入）——警告後回退內建詞典。
+        if os.path.isfile(_dict_override):
+            _jieba.set_dictionary(_dict_override)
+        else:
+            print(
+                f"[逗福Tofu 警告] TOFU_JIEBA_DICT 指向的詞典不存在："
+                f"{_dict_override}，回退使用內建詞典。",
+                file=sys.stderr,
+                flush=True,
+            )
+            if _BIG_DICT_PATH.is_file():
+                _jieba.set_dictionary(str(_BIG_DICT_PATH))
     elif not _dict_override and _BIG_DICT_PATH.is_file():
         _jieba.set_dictionary(str(_BIG_DICT_PATH))
     # 把外來語表註冊進 jieba，避免被切碎（邏輯鏈 v0.3 第二層規則）
     # add_word 必須在 set_dictionary 之後——換詞典會重置使用者詞表。
+    # tag="n"：不給詞性的話 posseg 會標成 'x'，tokenize_nouns 的名詞性
+    # 過濾就會把大詞典裡沒有的外來語（拿鐵、拉麵…）整批誤殺。
+    # 外來語表全為名詞，統一標 n 是安全的。
     for _word in _LOANWORDS:
-        _jieba.add_word(_word)
+        _jieba.add_word(_word, tag="n")
 except ImportError:
     print(
         "[逗福Tofu 警告] jieba 未安裝，斷詞將使用 2-gram 降級模式。"

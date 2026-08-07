@@ -33,13 +33,14 @@ def main() -> None:
     path = sys.argv[1]
 
     inputs: list[str] = []
-    for line in open(path, encoding="utf-8"):
-        row = json.loads(line)
-        if row.get("type") != "start":
-            continue
-        text = (row.get("start_data") or {}).get("user_input", "")
-        if text:
-            inputs.append(text)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            row = json.loads(line)
+            if row.get("type") != "start":
+                continue
+            text = (row.get("start_data") or {}).get("user_input", "")
+            if text:
+                inputs.append(text)
     print(f"start 端點 {len(inputs)} 筆")
 
     inter = [{"user_input": t} for t in inputs]

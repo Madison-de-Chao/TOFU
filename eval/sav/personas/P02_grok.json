@@ -1,0 +1,627 @@
+{
+  "persona_id": "P02",
+  "author_model": "Grok-4.5-xAI",
+  "created_date": "2026-08-06",
+  "language": "zh-TW",
+  "persona_note": "28歲女性，台北市某獨立咖啡店兼任活動企劃。做事節奏快，決定多半靠當下感覺與過去經驗，很少事先列完整計畫。喜歡直接嘗試新事物，失敗了再調整。社交活躍，常臨時接受邀約。消費上容易被當下氛圍影響，較少反覆比價。居住在合租套房，對生活品質有感但不會過度計算。整體呈現衝動決策與經驗導向特質。",
+  "revealed": [
+    {
+      "dim_id": "R01",
+      "session_order": 1,
+      "content": "昨天臨時被朋友拉去試一家新開的拉麵店，人超多但我還是排隊了，結果湯頭意外對味。",
+      "implicit_signals": [
+        "接受臨時邀約",
+        "願意嘗試新店"
+      ]
+    },
+    {
+      "dim_id": "R02",
+      "session_order": 2,
+      "content": "這週二晚上下雨，我騎車回家時差點在轉彎處滑倒，後來才發現雨衣根本沒帶在車上。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R03",
+      "session_order": 3,
+      "content": "同事問我下個月要不要一起報那個兩天一夜的營隊，我當下就說好，細節之後再補。",
+      "implicit_signals": [
+        "快速答應",
+        "細節後補"
+      ]
+    },
+    {
+      "dim_id": "R04",
+      "session_order": 4,
+      "content": "上次看到路邊有人在賣手工飾品，我沒多想就買了一對耳環，回家才發現有點貴。",
+      "implicit_signals": [
+        "衝動消費",
+        "事後才意識價格"
+      ]
+    },
+    {
+      "dim_id": "R05",
+      "session_order": 5,
+      "content": "家裡熱水器突然壞了，房東說要等三天才能排到師傅來修，這期間我只能用電熱水瓶湊合。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R06",
+      "session_order": 6,
+      "content": "我做事通常先動手，邊做邊調整，很少會先把全部步驟完整寫下來。",
+      "implicit_signals": [
+        "明說邊做邊調"
+      ]
+    },
+    {
+      "dim_id": "R07",
+      "session_order": 7,
+      "content": "朋友傳了一個限時優惠的機票，我看了一眼就先訂了，行程之後再慢慢排。",
+      "implicit_signals": [
+        "先訂再排",
+        "限時驅動"
+      ]
+    },
+    {
+      "dim_id": "R08",
+      "session_order": 8,
+      "content": "這幾天睡眠有點亂，昨天半夜還起來喝了杯冰可樂，結果反而更清醒睡不著。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R09",
+      "session_order": 9,
+      "content": "上次那個小組報告，我一開始隨便抓了個方向就開始做，後來才發現要大改。",
+      "implicit_signals": [
+        "先動手後修正"
+      ]
+    },
+    {
+      "dim_id": "R10",
+      "session_order": 10,
+      "content": "公司附近新開了一家鹽酥雞，我連著三天都去吃，味道還可以就繼續。",
+      "implicit_signals": [
+        "重複嘗試新店"
+      ]
+    },
+    {
+      "dim_id": "R11",
+      "session_order": 11,
+      "content": "週末原本沒計畫，結果朋友突然說要去海邊，我直接答應，當天再決定穿什麼。",
+      "implicit_signals": [
+        "臨時答應出遊"
+      ]
+    },
+    {
+      "dim_id": "R12",
+      "session_order": 12,
+      "content": "電梯又壞了，我改走樓梯，走到一半才想起忘記帶鑰匙，只好又下去拿一次。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R13",
+      "session_order": 13,
+      "content": "我買東西很少會先查評價，通常是看到覺得好看或有趣就先下手再說。",
+      "implicit_signals": [
+        "明說少查評價"
+      ]
+    },
+    {
+      "dim_id": "R14",
+      "session_order": 14,
+      "content": "上次去看牙醫，醫師說要補一顆，我當場就決定補，沒有再約第二次確認。",
+      "implicit_signals": [
+        "當場決定"
+      ]
+    },
+    {
+      "dim_id": "R15",
+      "session_order": 15,
+      "content": "這禮拜三收到一封活動邀約信，我回覆說有興趣，時間地點之後再對。",
+      "implicit_signals": [
+        "先表態再對細節"
+      ]
+    },
+    {
+      "dim_id": "R16",
+      "session_order": 16,
+      "content": "昨天路過一家二手書店，進去隨便翻了幾本，最後抱了三本出來，也不確定會不會看。",
+      "implicit_signals": [
+        "衝動購書"
+      ]
+    },
+    {
+      "dim_id": "R17",
+      "session_order": 17,
+      "content": "同事說週末有個臨時聚餐，我回說好啊，再問一下時間地點就行了。",
+      "implicit_signals": [
+        "快速接受聚餐"
+      ]
+    },
+    {
+      "dim_id": "R18",
+      "session_order": 18,
+      "content": "這幾天風很大，陽台的衣服被吹掉兩件，我後來才發現夾子沒夾緊。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R19",
+      "session_order": 19,
+      "content": "我不太會拒絕臨時邀約，就算當天已經有點累，還是會先答應再說。",
+      "implicit_signals": [
+        "明說少拒絕臨時"
+      ]
+    },
+    {
+      "dim_id": "R20",
+      "session_order": 20,
+      "content": "上次買運動鞋是看到店門口有折扣牌，進去試穿覺得舒服就直接結帳。",
+      "implicit_signals": [
+        "現場決定購買"
+      ]
+    },
+    {
+      "dim_id": "R21",
+      "session_order": 21,
+      "content": "朋友問我要不要一起學那個新的線上課程，我說先報名再說，內容之後再看。",
+      "implicit_signals": [
+        "先報名後了解"
+      ]
+    },
+    {
+      "dim_id": "R22",
+      "session_order": 22,
+      "content": "這週的會議我沒有事先準備投影片，到現場才邊聽邊把重點補上。。",
+      "implicit_signals": [
+        "現場補齊"
+      ]
+    },
+    {
+      "dim_id": "R23",
+      "session_order": 23,
+      "content": "昨天晚上突然想吃火鍋，就直接點了外送，也沒管冰箱裡還有沒有剩菜。",
+      "implicit_signals": [
+        "當下想吃就點"
+      ]
+    },
+    {
+      "dim_id": "R24",
+      "session_order": 24,
+      "content": "隔壁在裝修，噪音從早到晚一直響，我戴耳機聽歌才比較能專心做事。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R25",
+      "session_order": 25,
+      "content": "我決定事情通常很快，想太多反而容易猶豫，乾脆先做再看結果怎麼樣。",
+      "implicit_signals": [
+        "明說快速決定"
+      ]
+    },
+    {
+      "dim_id": "R26",
+      "session_order": 26,
+      "content": "上次去那間新咖啡廳，點了店員推薦的特調，味道普通但體驗還可以。",
+      "implicit_signals": [
+        "接受推薦嘗試"
+      ]
+    },
+    {
+      "dim_id": "R27",
+      "session_order": 27,
+      "content": "這週末原本想在家休息，結果看到限時展覽訊息，就直接出門去看了。",
+      "implicit_signals": [
+        "被訊息觸發出門"
+      ]
+    },
+    {
+      "dim_id": "R28",
+      "session_order": 28,
+      "content": "朋友說要合資買一台二手相機，我當下覺得有趣就答應了，價錢之後再談。",
+      "implicit_signals": [
+        "先答應合資"
+      ]
+    },
+    {
+      "dim_id": "R29",
+      "session_order": 29,
+      "content": "公司臨時說要加班趕提案，我回覆可以，然後邊做邊想整體結構。。",
+      "implicit_signals": [
+        "接受臨時加班"
+      ]
+    },
+    {
+      "dim_id": "R30",
+      "session_order": 30,
+      "content": "昨天去超市，原本只想買牛奶，結果看到促銷區就多拿了幾樣零食。",
+      "implicit_signals": [
+        "促銷觸發多買"
+      ]
+    },
+    {
+      "dim_id": "R31",
+      "session_order": 31,
+      "content": "這幾天天氣忽冷忽熱，我出門時只帶一件薄外套，結果晚上真的有點冷。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R32",
+      "session_order": 32,
+      "content": "我把常用的東西隨手放，找的時候常常要翻一下，但也不至於太混亂。",
+      "implicit_signals": [
+        "隨手放"
+      ]
+    },
+    {
+      "dim_id": "R33",
+      "session_order": 33,
+      "content": "上次去補習班附近，看到一家新開的甜點店，進去買了兩塊蛋糕帶回家。",
+      "implicit_signals": [
+        "路過就買"
+      ]
+    },
+    {
+      "dim_id": "R34",
+      "session_order": 34,
+      "content": "這週的報表我週四才開始做，雖然有點趕，但最後還是準時交出去了。",
+      "implicit_signals": [
+        "接近期限才動"
+      ]
+    },
+    {
+      "dim_id": "R35",
+      "session_order": 35,
+      "content": "媽說冰箱裡有剩菜，我打開看了一下，覺得不太想吃，就直接點了外送。",
+      "implicit_signals": [
+        "不想吃就點外送"
+      ]
+    },
+    {
+      "dim_id": "R36",
+      "session_order": 36,
+      "content": "同事問我要不要一起報名那個戶外活動，我說好啊，先報再說細節。",
+      "implicit_signals": [
+        "先報後看細節"
+      ]
+    },
+    {
+      "dim_id": "R37",
+      "session_order": 37,
+      "content": "這禮拜的電費比上個月多一點，我看了一眼就沒再深究，反正金額還可以接受。",
+      "implicit_signals": [
+        "不深究小額差異"
+      ]
+    },
+    {
+      "dim_id": "R38",
+      "session_order": 38,
+      "content": "我看到喜歡的衣服通常會先買下來，回家再決定要不要留，退貨也還好。",
+      "implicit_signals": [
+        "先買後決定"
+      ]
+    },
+    {
+      "dim_id": "R39",
+      "session_order": 39,
+      "content": "外面突然下大雨，我臨時跑進便利商店躲雨，順便買了個飯糰當晚餐。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R40",
+      "session_order": 40,
+      "content": "上次買手機殼是看到顏色特別，試戴覺得有趣就結帳，後來才發現有點厚。",
+      "implicit_signals": [
+        "顏色觸發購買"
+      ]
+    },
+    {
+      "dim_id": "R41",
+      "session_order": 41,
+      "content": "公司臨時說要改提案方向，我直接接受，然後重新抓一個感覺開始做。",
+      "implicit_signals": [
+        "接受方向改變"
+      ]
+    },
+    {
+      "dim_id": "R42",
+      "session_order": 42,
+      "content": "這幾天睡眠不足，我還是照常喝咖啡，下午再補一杯提神繼續做事。",
+      "implicit_signals": [
+        "維持既有習慣"
+      ]
+    },
+    {
+      "dim_id": "R43",
+      "session_order": 43,
+      "content": "朋友傳了一個新開的展覽資訊，我看完就直接線上訂票，時間再自己安排。",
+      "implicit_signals": [
+        "直接訂票"
+      ]
+    },
+    {
+      "dim_id": "R44",
+      "session_order": 44,
+      "content": "家裡燈管閃了一下，我先換個位置繼續做事，等有空再找時間處理。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R45",
+      "session_order": 45,
+      "content": "這週末原本沒特別安排，結果看到朋友動態說要去夜市，我就直接過去會合。",
+      "implicit_signals": [
+        "被動態觸發加入"
+      ]
+    },
+    {
+      "dim_id": "R46",
+      "session_order": 46,
+      "content": "我做事不太會先列完整清單，通常想到哪做到哪，最後再補漏的部分。",
+      "implicit_signals": [
+        "明說想到哪做到哪"
+      ]
+    },
+    {
+      "dim_id": "R47",
+      "session_order": 47,
+      "content": "上個月收到一張折扣券，我當天就去店裡用掉，沒有留到之後再用。",
+      "implicit_signals": [
+        "當下使用優惠"
+      ]
+    },
+    {
+      "dim_id": "R48",
+      "session_order": 48,
+      "content": "同事說有個臨時聚餐，我回說可以，然後問他地點在哪就直接出發了。",
+      "implicit_signals": [
+        "快速出發"
+      ]
+    },
+    {
+      "dim_id": "R49",
+      "session_order": 49,
+      "content": "這幾天天氣不穩，我出門時沒帶傘，結果中途下雨就只好跑進騎樓躲。",
+      "implicit_signals": []
+    },
+    {
+      "dim_id": "R50",
+      "session_order": 50,
+      "content": "我決定要不要買東西，通常看當下的感覺，覺得對了就下手，很少會拖很久。",
+      "implicit_signals": [
+        "明說靠感覺決定"
+      ]
+    }
+  ],
+  "inferable": [
+    {
+      "dim_id": "I01",
+      "question": "這個人的朋友臨時邀他週末去一個沒去過的小島玩兩天，他最可能的反應是？",
+      "options": {
+        "A": "先查清楚交通與住宿再回覆",
+        "B": "建議改成近一點的景點",
+        "C": "先同意參加，後續再慢慢補安排",
+        "D": "先看自己原本有沒有安排"
+      },
+      "gold": "C",
+      "inference_basis": [
+        "R03",
+        "R11",
+        "R19"
+      ],
+      "rationale": "從快速答應營隊、臨時海邊、少拒絕邀約可見，面對新地點也會先答應再補細節。[易]"
+    },
+    {
+      "dim_id": "I02",
+      "question": "如果看到一件喜歡的衣服但價格比預期高，這個人最可能怎麼做？",
+      "options": {
+        "A": "覺得合適就當場結帳帶走",
+        "B": "回家考慮幾天再說",
+        "C": "先比價三家再決定",
+        "D": "詢問店員有沒有折扣"
+      },
+      "gold": "A",
+      "inference_basis": [
+        "R04",
+        "R20",
+        "R38"
+      ],
+      "rationale": "從路邊飾品衝動買、現場試穿結帳、先買後決定可見，價格高仍可能當下購買。[易]"
+    },
+    {
+      "dim_id": "I03",
+      "question": "公司突然要求改一個已經進行一半的提案方向，這個人最可能怎麼回應？",
+      "options": {
+        "A": "先要求完整說明再開始",
+        "B": "先評估時間是否足夠",
+        "C": "建議維持原方向並補充",
+        "D": "接受新方向並重新開始構思"
+      },
+      "gold": "D",
+      "inference_basis": [
+        "R09",
+        "R29",
+        "R41"
+      ],
+      "rationale": "從先動手後大改、接受加班邊做、接受改方向可見，會直接重抓感覺開始。[中]"
+    },
+    {
+      "dim_id": "I04",
+      "question": "這個人計畫一趟自由行，最可能優先處理什麼？",
+      "options": {
+        "A": "先把每日行程表列完整",
+        "B": "先訂好機票或住宿再說",
+        "C": "先問朋友有沒有推薦",
+        "D": "先計算整體預算上限"
+      },
+      "gold": "B",
+      "inference_basis": [
+        "R07",
+        "R21",
+        "R43"
+      ],
+      "rationale": "從先訂機票再排、先報名後看、直接訂票可見，會先鎖定名額再補後續。[中]"
+    },
+    {
+      "dim_id": "I05",
+      "question": "如果家裡突然需要一筆非預期支出，這個人最可能怎麼處理？",
+      "options": {
+        "A": "當下能處理就先處理再說",
+        "B": "先延後其他計畫來湊錢",
+        "C": "先動用事先存好的備用金",
+        "D": "立刻向家人借錢應急"
+      },
+      "gold": "A",
+      "inference_basis": [
+        "R23",
+        "R30",
+        "R35"
+      ],
+      "rationale": "從想吃就點、促銷多拿、不想吃就外送可見，當下能解決就先做。[中]"
+    },
+    {
+      "dim_id": "I06",
+      "question": "這個人被邀請參加一個需要提前準備資料的活動，他最可能怎麼回應？",
+      "options": {
+        "A": "先把資料準備完整再答應",
+        "B": "建議改成不需準備的形式",
+        "C": "先點頭，準備工作之後再補齊",
+        "D": "詢問能不能只當旁聽"
+      },
+      "gold": "C",
+      "inference_basis": [
+        "R15",
+        "R22",
+        "R36"
+      ],
+      "rationale": "從先表態再對細節、現場補投影片、先報後看細節可見，會先答應再補準備。[中]"
+    },
+    {
+      "dim_id": "I07",
+      "question": "如果發現常用的便當店突然換了老闆與菜單，這個人最可能怎麼做？",
+      "options": {
+        "A": "改去另一家已知穩定的店",
+        "B": "先問同事有沒有推薦",
+        "C": "自己帶便當一段時間",
+        "D": "直接去試試新菜單"
+      },
+      "gold": "D",
+      "inference_basis": [
+        "R01",
+        "R10",
+        "R26"
+      ],
+      "rationale": "從排隊試新拉麵、連吃三天新店、接受推薦特調可見，會直接嘗試新變化。[易]"
+    },
+    {
+      "dim_id": "I08",
+      "question": "這個人在考慮是否報名一個週末工作坊時，最可能被哪個因素影響？",
+      "options": {
+        "A": "活動內容是否與既有行程衝突",
+        "B": "當下對這個活動產生的直覺",
+        "C": "報名費用是否可以全額退還",
+        "D": "講師的名氣與過去評價高低"
+      },
+      "gold": "B",
+      "inference_basis": [
+        "R27",
+        "R45",
+        "R50"
+      ],
+      "rationale": "從限時展覽直接出門、被動態觸發會合、靠感覺決定可見，當下感覺是關鍵。[難]"
+    },
+    {
+      "dim_id": "I09",
+      "question": "如果這個人需要為自己挑選一台新電器，他最可能的決策過程是？",
+      "options": {
+        "A": "先列需求再慢慢比較評價",
+        "B": "直接選擇最貴的那個品牌",
+        "C": "進店後看到滿意的就當場決定",
+        "D": "先問店員推薦哪一台比較好"
+      },
+      "gold": "C",
+      "inference_basis": [
+        "R13",
+        "R20",
+        "R40"
+      ],
+      "rationale": "從少查評價、現場試穿結帳、顏色觸發購買可見，到店看到喜歡就買。[中]"
+    },
+    {
+      "dim_id": "I10",
+      "question": "這個人的朋友邀他合資買一台露營設備，他最可能的反應是？",
+      "options": {
+        "A": "先評估預算與使用頻率",
+        "B": "覺得有意思就先點頭參與",
+        "C": "建議改成租用方式",
+        "D": "直接拒絕並提出其他活動"
+      },
+      "gold": "B",
+      "inference_basis": [
+        "R28",
+        "R03",
+        "R07"
+      ],
+      "rationale": "從先答應合資相機、快速答應營隊、先訂再排可見，有趣就先答應。[難]"
+    }
+  ],
+  "non_inferable": [
+    {
+      "dim_id": "N01",
+      "question": "這個人小時候養過的第一隻寵物是？",
+      "options": {
+        "A": "曾經養過貓",
+        "B": "曾經養過狗",
+        "C": "曾經養過兔子",
+        "D": "從來沒養過寵物"
+      },
+      "gold": "A",
+      "independence_note": "revealed 中完全沒有任何寵物、動物、飼養相關條目，無法推論。"
+    },
+    {
+      "dim_id": "N02",
+      "question": "這個人手機桌布最可能是？",
+      "options": {
+        "A": "風景照片",
+        "B": "家人合照",
+        "C": "純色背景",
+        "D": "卡通圖案"
+      },
+      "gold": "D",
+      "independence_note": "revealed 中無任何手機、桌布、照片、視覺偏好相關內容，完全獨立。"
+    },
+    {
+      "dim_id": "N03",
+      "question": "這個人最常聽的音樂類型是？",
+      "options": {
+        "A": "流行歌曲",
+        "B": "古典音樂",
+        "C": "搖滾音樂",
+        "D": "電子音樂"
+      },
+      "gold": "C",
+      "independence_note": "revealed 中完全沒有音樂、聲音、娛樂類型、耳機等任何相關線索。"
+    },
+    {
+      "dim_id": "N04",
+      "question": "這個人最喜歡的季節是？",
+      "options": {
+        "A": "春天季節",
+        "B": "夏天季節",
+        "C": "秋天季節",
+        "D": "冬天季節"
+      },
+      "gold": "B",
+      "independence_note": "revealed 雖有天氣描述但無季節偏好或喜好表態，無法從中推論。"
+    },
+    {
+      "dim_id": "N05",
+      "question": "這個人慣用哪一手寫字？",
+      "options": {
+        "A": "主要用右手",
+        "B": "主要用左手",
+        "C": "雙手都能寫",
+        "D": "沒特別注意"
+      },
+      "gold": "A",
+      "independence_note": "revealed 中無任何手部使用、寫字、慣用手相關描述，純屬無關事實。"
+    }
+  ]
+}

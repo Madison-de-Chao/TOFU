@@ -123,8 +123,12 @@ class DeduplicateGapQuestionsTests(unittest.TestCase):
 
     def test_cross_question_overlap_not_false_dropped(self):
         """逐題拆開的關鍵修正：新問題分別與兩道舊問題各重疊一點，
-        合併集合下會誤判重複（>0.6），逐題比對則應保留。"""
-        prior = ["第 1 輪提問：預算多少、場地在哪；使用者回：確認"]
+        合併集合下會誤判重複（>0.6），逐題比對則應保留。
+
+        v0.8 斷詞改用繁中大詞典後，「場地在哪」只剩單一 token（「在哪」
+        被停用詞/長度規則濾掉），單 token 舊題會讓 min-len 重疊率直接打滿；
+        改用兩題各含兩個實詞 token 的例句，維持原測試意圖。"""
+        prior = ["第 1 輪提問：預算大概多少錢、場地要選哪個地區；使用者回：確認"]
         kept = _deduplicate_gap_questions(["預算場地"], prior)
         self.assertEqual(kept, [0])
 

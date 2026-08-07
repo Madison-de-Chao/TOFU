@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from datetime import datetime, timedelta, timezone
 
+from src.utils import tokenizer as _tokenizer_mod
 from src.middleware.user_profile import (
     ProfileStore,
     _default_profile,
@@ -263,6 +264,69 @@ class PreferenceExtractionTests(unittest.TestCase):
             {"user_input": "i love sushi restaurants"},
         ])
         self.assertTrue(any(p["type"] == "explicit" for p in prefs))
+
+    def test_exclusion_not_triggered_by_yes_no_question(self):
+        """v0.8 回歸：「要不要」是別人問使用者的句型，不是排除偏好。
+
+        修復前「媽問我要不要換車」會因子字串比對命中「不要」，把被詢問
+        的事項存成 exclusion（實測 50 輪的 4 條偏好中 2 條由此而來）。"""
+        prefs = extract_preferences([
+            {"user_input": "媽問我要不要換車，我說先等等。"},
+            {"user_input": "同事問我要不要一起報名那個戶外活動。"},
+            {"user_input": "這件事不要緊，先處理別的。"},
+        ])
+        self.assertEqual([p for p in prefs if p["type"] == "exclusion"], [])
+
+    def test_exclusion_still_triggered_by_genuine_negation(self):
+        """防護不能誤傷句首/真正的否定表達。"""
+        for text in ["不要太辣的東西", "我不想再排隊了", "我不喜歡人多的場合"]:
+            prefs = extract_preferences([{"user_input": text}])
+            self.assertTrue(
+                any(p["type"] == "exclusion" for p in prefs),
+                f"應提取為 exclusion：{text}",
+            )
+
+    def test_exclusion_item_is_self_contained(self):
+        """v0.8 回歸：exclusion 的 item 必須自帶否定詞，語義自足。
+
+        修復前「避免踩到箱子」會存成「踩到箱子」——單看 item 文字
+        語義相反，只靠 [exclusion] 標記承載否定。"""
+        prefs = extract_preferences([
+            {"user_input": "我改走另一邊繞路，避免踩到或弄倒那些箱子。"},
+        ])
+        exclusion = [p for p in prefs if p["type"] == "exclusion"]
+        self.assertTrue(exclusion)
+        self.assertTrue(exclusion[0]["item"].startswith("避免"))
+
+    @unittest.skipIf(_tokenizer_mod._jieba is None,
+                     "jieba 未安裝時 tokenize_nouns 走 2-gram 降級，無詞性可過濾")
+    def test_domains_filter_function_words(self):
+        """v0.8 回歸：興趣領域只留名詞性詞。
+
+        修復前「這樣」「比較」「突然」這類功能詞會佔滿榜單。"""
+        domains = extract_domains([
+            {"user_input": "突然覺得這樣比較好，還是先把報表做完。"},
+            {"user_input": "下班後去那家咖啡店坐一下，報表明天再說。"},
+        ])
+        names = {d["name"] for d in domains}
+        self.assertIn("報表", names)
+        for junk in ("這樣", "比較", "突然", "還是", "那家"):
+            self.assertNotIn(junk, names)
+
+    @unittest.skipIf(_tokenizer_mod._jieba is None,
+                     "jieba 未安裝時 tokenize_nouns 走 2-gram 降級，無詞性可過濾")
+    def test_domains_keep_registered_loanwords(self):
+        """v0.8 回歸（Codex review P1）：外來語不能被詞性過濾誤殺。
+
+        add_word 不給 tag 的話 posseg 標成 'x'，大詞典裡沒有的外來語
+        （拿鐵、拉麵…）會整批從 domains 消失。"""
+        domains = extract_domains([
+            {"user_input": "我每天早上都要喝一杯拿鐵。"},
+            {"user_input": "中午吃了拉麵，湯頭不錯。"},
+        ])
+        names = {d["name"] for d in domains}
+        self.assertIn("拿鐵", names)
+        self.assertIn("拉麵", names)
 
     def test_slice_indices_correct_with_unicode_case_change(self):
         # 回歸測試:Turkish 大寫 İ (U+0130) 的 .lower() 會變成 2 個

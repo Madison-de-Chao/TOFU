@@ -115,10 +115,13 @@ class HasEffectiveInfoTests(unittest.TestCase):
                 "constraints": ["台北", "信義區", "三萬"],
             }
         }]
-        # 完全重複已知名詞的長回應
+        # 完全重複已知名詞的長回應。
+        # v0.8 斷詞改用繁中大詞典後，「生日派對」是單一 token；
+        # 回應若只寫「生日」會被視為新 token（規格「寧可判多不判少」
+        # 容許的方向），此處用與端點相同的複合詞驗證「全部已知 → 無效」。
         self.assertFalse(
             confirm_mod.has_effective_info(
-                "台北 信義區 三萬 派對 生日",
+                "台北 信義區 三萬 派對 生日派對",
                 existing,
             )
         )

@@ -60,6 +60,20 @@ cp -r /tmp/jb/jieba-*/jieba "$(python3 -c 'import site;print(site.getsitepackage
 
 ## 執行步驟
 
+### 第零步：先看畫像有沒有累積起來（強烈建議）
+
+```bash
+python3 eval/sav/dump_profile.py --card eval/sav/personas/P01_grok.json \
+    --model claude-haiku-4-5-20251001 --keep _profile_run
+```
+
+只跑 50 輪互動、不考試（約 US$0.6），跑完直接印出逗福累積的畫像。判讀：
+
+- 偏好條目為 0 或個位數 → 記憶沒累積起來，作答等同裸模型，先修這個再談考試
+- 偏好條目充足但後續答題不準 → 記憶有累積，是題目測不到或檢索沒用上
+
+這兩種情況的處理方式完全不同。已跑過的目錄可用 `--inspect _profile_run/data` 重看，不花錢。
+
 ### 第一步：先跑一張，不要直接開 20 張
 
 ```bash
@@ -103,6 +117,20 @@ python3 eval/sav/sav_runner.py "eval/sav/personas/*.json" \
 
 可以分批跑，`results/` 下每張卡一個 `_raw.jsonl`，scorer 會自動合併。
 
+### 指稱錨定 A/B（`--anchored`）
+
+第一輪實測發現的指稱斷裂問題：逗福注入記憶時全部標成第二人稱（「使用者畫像」
+「你之前提過」），而題幹問的是第三人稱（「這個人」「她」），模型接不上。
+`--anchored` 會在題幹前加一句「這個人指的就是我本人」：
+
+```bash
+# 同一張卡，兩個條件各跑一次
+python3 eval/sav/sav_runner.py "eval/sav/personas/P01_grok.json" --model claude-haiku-4-5-20251001 --out eval/sav/results
+python3 eval/sav/sav_runner.py "eval/sav/personas/P01_grok.json" --model claude-haiku-4-5-20251001 --out eval/sav/results --anchored
+```
+
+anchored 檔名帶 `_anchored` 後綴。兩條曲線的差距，就是指稱斷裂造成的損失。
+
 ### 第三步：判分
 
 ```bash
@@ -111,9 +139,32 @@ python3 eval/sav/scorer.py "eval/sav/results/*_raw.jsonl" --by-author
 
 不呼叫 API，純程式碼。
 
+**跑過 `--anchored` 的話，兩個條件必須分開判**——glob 會同時吃到兩種檔案，
+混著判會把 A/B 兩條曲線攪成一條（scorer 偵測到混合時會警告）：
+
+```bash
+python3 eval/sav/scorer.py "eval/sav/results/*_raw.jsonl" --condition plain
+python3 eval/sav/scorer.py "eval/sav/results/*_raw.jsonl" --condition anchored
+```
+
 ---
 
 ## 硬規則
+
+**`--dry-run` 的「不呼叫 API」由兩層防線保證，缺一不可。**
+
+第一輪實測燒掉了真錢，原因有兩個，現在都堵上了：
+
+1. `make_client` 傳 `api_key=None` 時，`LLMClient` 會回頭讀環境變數
+   `CLAUDE_API_KEY`，並用預設模型 `claude-opus-4-6` 打真實 API。
+   現已強制設 `fallback_mode`。
+2. 詞性標記器（`HaikuWordTagger`）自己讀 `CLAUDE_API_KEY`，不經過 runner 的
+   client——即使第 1 點修好，它仍會每輪互動打一次真實 Haiku，且把考題詞彙
+   寫進真專案的 `data/words/`。現由 `_sandbox.py` 隔離（words 導向臨時目錄
+   ＋強制離線）。詞表在互動流程中只寫不讀，關掉不影響測驗結果。
+
+改 runner 時不要移除 `import _sandbox`，也不要讓任何元件在 `import src.main`
+之前拿不到 `TOFU_WORDS_DIR`。
 
 **`--model` 是必填，不給會直接報錯退出。**
 

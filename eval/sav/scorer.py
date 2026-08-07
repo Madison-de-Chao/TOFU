@@ -37,6 +37,11 @@ def main():
     ap.add_argument("--threshold", type=float, default=15.0,
                     help="inferable 與 non_inferable 的差距門檻（百分點）")
     ap.add_argument("--by-author", action="store_true", help="依出題方分組")
+    ap.add_argument("--condition", choices=["all", "plain", "anchored"],
+                    default="all",
+                    help="依題幹條件過濾。plain=無錨定句、anchored=有錨定句。"
+                         "glob 常會同時吃到兩種檔案，混在一起判分會把 A/B "
+                         "兩條曲線攪成一條，跑過 --anchored 的話務必分開判。")
     ap.add_argument("--out", default="summary.json")
     a = ap.parse_args()
 
@@ -45,6 +50,11 @@ def main():
         src = os.path.basename(f).replace("_raw.jsonl", "")
         for line in open(f, encoding="utf-8"):
             r = json.loads(line)
+            anch = bool(r.get("anchored", False))
+            if a.condition == "plain" and anch:
+                continue
+            if a.condition == "anchored" and not anch:
+                continue
             r["_src"] = src
             r["_author"] = ("gpt" if "gpt" in src.lower() else
                             "claude" if "claude" in src.lower() else
@@ -53,6 +63,12 @@ def main():
             rows.append(r)
     if not rows:
         raise SystemExit(f"找不到資料：{a.pattern}")
+
+    if a.condition == "all":
+        kinds = {bool(r.get("anchored", False)) for r in rows}
+        if len(kinds) > 1:
+            print("⚠ 警告：資料同時含 plain 與 anchored 兩種條件，曲線已被混合。\n"
+                  "  請分開判分：--condition plain 與 --condition anchored 各跑一次。")
 
     def tally(sel):
         t = defaultdict(lambda: defaultdict(lambda: {"hit": 0, "miss": 0, "unparse": 0}))

@@ -1117,26 +1117,40 @@ def encode_endpoint(
 
 # 記憶編碼的 codebook（放在 system prompt 裡讓 LLM 理解格式）
 MEMORY_CODEBOOK = """## Memory Format Legend
+The records below are YOUR OWN memory — notes you (Tofu) wrote down
+in past interactions with this user. They are not external input,
+not a test, not fabricated data.
 PREF_EXP: items the user explicitly said they like
 PREF_IMP: items inferred from user behavior (bought, watched, spent time on)
 AVOID: items the user wants to exclude or dislikes
 KEY: exact nouns from original conversation — never ignore these
-GOAL: the user's original words in this interaction
-DERIVED: Tofu's interpretation at the time — NOT the user's words.
-  When GOAL and DERIVED conflict, GOAL (the original words) wins.
-RESULT: what was provided"""
+GOAL: the user's original words — highest authority
+DERIVED: your own interpretation at the time. It may contain things
+  the user never said — that is expected, it is your past inference.
+  When GOAL and DERIVED conflict, GOAL wins.
+RESULT: what you yourself replied in that interaction. Read it to
+  keep continuity. Do not audit or disown it — if your past reply
+  was off, just do better this round without announcing it."""
 
 
-# v0.5：LLM 每次 call 送出的密碼字典（CODEBOOK），≈ 50 tokens
+# v0.5：LLM 每次 call 送出的密碼字典（CODEBOOK）。
+# v0.9 加入記憶身分聲明與 RESULT 說明後 ≈ 250 tokens（994 字元）。
 # 依 20260416_端點檢索與元動機偵測_邏輯鏈_v0_5.md 第一塊定義。
 # 這條字串會注入 system prompt 讓 LLM 理解密碼表欄位的意義。
 #
 # v0.5+：KEY 名詞可能附帶 `[status]` 標記（純程式碼偵測，非 LLM 判斷），
 # acquired / active / divested / abandoned 代表使用者對該物件的狀態方向。
 CODEBOOK = """## CODEBOOK
-GOAL: the user's original words in this interaction — highest authority
-DERIVED: Tofu's interpretation at the time — NOT the user's words.
-  When GOAL and DERIVED conflict, GOAL (the original words) wins.
+The records below are YOUR OWN memory — notes you (Tofu) wrote down
+in past interactions with this user. They are not external input,
+not a test, not fabricated data.
+GOAL: the user's original words — highest authority
+DERIVED: your own interpretation at the time. It may contain things
+  the user never said — that is expected, it is your past inference.
+  When GOAL and DERIVED conflict, GOAL wins.
+RESULT: what you yourself replied in that interaction. Read it to
+  keep continuity. Do not audit or disown it — if your past reply
+  was off, just do better this round without announcing it.
 PREF_EXP: items the user explicitly said they like
 PREF_IMP: items inferred from user behavior
 AVOID: items the user wants to exclude

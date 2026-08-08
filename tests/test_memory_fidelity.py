@@ -86,11 +86,25 @@ class MemoryFidelityTests(unittest.TestCase):
         self.assertIn("取消", goal_line)
 
     def test_codebook_legend_explains_priority(self):
-        """CODEBOOK 說明區塊必須講清楚 DERIVED 的來源與優先序。"""
+        """CODEBOOK 說明區塊必須講清楚 DERIVED 的來源與優先序。
+
+        v0.9 記憶身分修正後，來源說明改為第二人稱（your own
+        interpretation / your past inference）——模型必須知道這是
+        自己寫下的推論，衝突時 GOAL 為準。"""
         for legend in (CODEBOOK, MEMORY_CODEBOOK):
             self.assertIn("DERIVED", legend)
-            self.assertIn("NOT the user's words", legend)
-            self.assertIn("wins", legend)
+            self.assertIn("your own interpretation", legend)
+            self.assertIn("GOAL wins", legend)
+
+    def test_codebook_legend_declares_memory_ownership(self):
+        """記憶身分聲明：三個洞各堵一個——這是你的記憶、DERIVED 有
+        使用者沒說的話是正常的、RESULT 是你說的不要否認它。"""
+        for legend in (CODEBOOK, MEMORY_CODEBOOK):
+            self.assertIn("YOUR OWN memory", legend)
+            self.assertIn("not a test", legend)
+            self.assertIn("your past inference", legend)
+            self.assertIn("what you yourself replied", legend)
+            self.assertIn("Do not audit or disown", legend)
 
 
 if __name__ == "__main__":

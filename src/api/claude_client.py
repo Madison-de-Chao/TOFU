@@ -1206,16 +1206,20 @@ class LLMClient(BaseLLMClient):
 
         cons_text = "\n".join(f"- {c}" for c in constraints) if constraints else "（無）"
 
-        # v0.5：密碼表嵌在 user message 最前面
+        # v0.5：記憶摘要嵌在 user message 最前面。
+        # v0.9：標題不得使用「密碼表」「top-k」——那些是 system prompt
+        # 明令禁止模型說出的內部術語，不能一邊當標題用、一邊禁止模型說。
+        # 標題同時聲明來源（模型自己寫下的記憶），配合 CODEBOOK 的身分
+        # 聲明堵住「這些資料來源不明→防禦性自我審查」的迴圈。
         top_k_block = ""
         if encoded_top_k:
             top_k_block = (
-                "## 密碼表（top-k 相關端點，v0.5 知識線）\n\n"
+                "## 你過去與這位使用者的互動記錄（你自己寫下的記憶摘要）\n\n"
                 + encoded_top_k.strip()
                 + "\n\n---\n\n"
             )
 
-        # v0.6 PR-C：/propose 多輪累積上下文，嵌在密碼表之後、目標之前
+        # v0.6 PR-C：/propose 多輪累積上下文，嵌在記憶摘要區塊之後、目標之前
         extra_block = ""
         if extra_context:
             extra_block = (

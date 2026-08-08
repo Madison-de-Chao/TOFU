@@ -34,10 +34,14 @@ def inspect(data_dir):
         ds = p.get("decision_style", {})
         im = p.get("interest_map", {})
         prefs = im.get("preferences", [])
-        print(f"畫像成熟度      {p.get('maturity', '?')}")
-        print(f"互動次數        {p.get('total_interactions', '?')}")
+        meta = p.get("meta", {}) or {}
+        print(f"畫像成熟度      {meta.get('maturity', p.get('maturity', '?'))}")
+        print(f"互動次數        {meta.get('total_interactions', p.get('total_interactions', '?'))}")
         print(f"偏好條目        {len(prefs)}")
-        print(f"領域            {list(im.get('domains', {}).keys())[:8]}")
+        # domains 是 list[{name, mention_count, depth}]，不是 dict
+        domains = im.get("domains") or []
+        names = [d.get("name") for d in domains if isinstance(d, dict)][:8]
+        print(f"領域            {names}（共 {len(domains)} 個）")
         print(f"表達方式        {cs.get('preference_expression')}")
         print(f"接收偏好        {cs.get('receiving_preference')}")
         print(f"決策風格        {ds}")

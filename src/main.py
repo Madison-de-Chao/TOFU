@@ -943,8 +943,16 @@ def run_one_interaction(
 
     # 5. 寫入 start 端點
     event_id = new_event_id()
-    # _answered_categories 是內部輔助欄位，不寫入磁碟
+    # _answered_categories 是內部輔助欄位，不寫入磁碟——但 v0.9 修復一需要
+    # 它的白名單過濾版本落盤：baseline 得靠 answered_categories 分辨
+    # 「常被補問（盲區）」與「從未出現（無資料）」。多輪補位的累積聯集
+    # 已在上方 append 進 _answered_categories，這裡直接物化。
     persisted_start = {k: v for k, v in start_data.items() if not k.startswith("_")}
+    persisted_start["answered_categories"] = sorted({
+        str(c).strip().lower()
+        for c in (start_data.get("_answered_categories") or [])
+        if str(c).strip().lower() in baseline_mod.ALLOWED_GAP_CATEGORIES
+    })
     # P0-1：記錄 goal 的 Zone 分類，供 /stats 統計使用
     persisted_start["zone"] = confirm_mod.classify_zone(
         persisted_start.get("goal", "")
@@ -1009,6 +1017,10 @@ def run_one_interaction(
             extra_context=cooling_extra,
             skip_gate=skip_atl3_gate,
             guardrails=guardrails,
+            # v0.9 修復三：執行階段必須看得到原話與確認過的理解，
+            # 否則模型只憑改寫後的 goal 推論，會與復述段自相矛盾。
+            raw_user_input=start_data.get("user_input", ""),
+            confirmed_understanding=start_data.get("tofu_understanding", ""),
         )
     except LLMClientError as exc:
         _print(f"[錯誤] 任務執行失敗：{exc}")
@@ -1062,6 +1074,8 @@ def run_one_interaction(
                     encoded_top_k=encoded_top_k,
                     output_mode=output_mode,
                     extra_context=retry_extra,
+                    raw_user_input=start_data.get("user_input", ""),
+                    confirmed_understanding=start_data.get("tofu_understanding", ""),
                 )
                 if guardrails is not None:
                     guardrails.record_call()
@@ -1206,11 +1220,26 @@ def run_one_interaction(
         analyzer = getattr(client, "analyze_deviation", None)
         if callable(analyzer):
             try:
-                analysis = analyzer(
-                    goal=start_data.get("goal", ""),
-                    result=result,
-                    deviation=deviation,
-                )
+                # v0.9 修復三：出口檢查也要看得到原話（判斷「使用者本來就
+                # 要求簡短」不算偏差）。舊 mock 沒有此參數時 TypeError 退化。
+                try:
+                    analysis = analyzer(
+                        goal=start_data.get("goal", ""),
+                        result=result,
+                        deviation=deviation,
+                        raw_user_input=user_input,
+                    )
+                except TypeError as sig_exc:
+                    if (
+                        "unexpected keyword argument" not in str(sig_exc)
+                        and "positional argument" not in str(sig_exc)
+                    ):
+                        raise
+                    analysis = analyzer(
+                        goal=start_data.get("goal", ""),
+                        result=result,
+                        deviation=deviation,
+                    )
             except LLMClientError as exc:
                 analysis = f"出口檢查失敗：{exc}"
         else:
@@ -1664,6 +1693,8 @@ def _execute_task_with_atl3_gate(
     max_retries: int = 2,
     skip_gate: bool = False,
     guardrails: GuardrailTracker | None = None,
+    raw_user_input: str = "",
+    confirmed_understanding: str = "",
 ) -> tuple[str, dict[str, Any]]:
     """v4.0 P0-1：execute_task 包 ATL-3 前驗證閘門 + 重試。
 
@@ -1717,6 +1748,8 @@ def _execute_task_with_atl3_gate(
             encoded_top_k=encoded_top_k,
             output_mode=output_mode,
             extra_context=current_extra,
+            raw_user_input=raw_user_input,
+            confirmed_understanding=confirmed_understanding,
         )
         if guardrails is not None and not getattr(client, "fallback_mode", False):
             guardrails.record_call()
@@ -1765,10 +1798,13 @@ def _call_execute_task(
     encoded_top_k: str | None,
     output_mode: str,
     extra_context: str | None,
+    raw_user_input: str = "",
+    confirmed_understanding: str = "",
 ) -> str:
-    """呼叫 client.execute_task，並做舊簽名的 TypeError 三層退化。
+    """呼叫 client.execute_task，並做舊簽名的 TypeError 多層退化。
 
     層級：
+    0. v0.9 修復三簽名（含 raw_user_input / confirmed_understanding）
     1. 完整 v0.6 PR-C 簽名（含 extra_context）
     2. 退回 v0.6 PR-B（沒 extra_context，保留 output_mode）
     3. 退回 v0.5（沒 output_mode，保留 strategy_brief / encoded_top_k）
@@ -1776,6 +1812,26 @@ def _call_execute_task(
 
     舊 mock client 與骨架後端都能通過而不引發 TypeError。
     """
+    if raw_user_input or confirmed_understanding:
+        try:
+            return client.execute_task(
+                goal=goal,
+                motivation=motivation,
+                constraints=constraints,
+                user_profile=user_profile,
+                strategy_brief=strategy_brief,
+                encoded_top_k=encoded_top_k,
+                output_mode=output_mode,
+                extra_context=extra_context,
+                raw_user_input=raw_user_input,
+                confirmed_understanding=confirmed_understanding,
+            )
+        except TypeError as exc:
+            if (
+                "unexpected keyword argument" not in str(exc)
+                and "positional argument" not in str(exc)
+            ):
+                raise
     try:
         return client.execute_task(
             goal=goal,

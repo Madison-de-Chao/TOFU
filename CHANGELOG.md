@@ -6,6 +6,23 @@
 
 ## [Unreleased]
 
+### 修正（止血三連修，施工單 2026-08-07）
+
+- **修復一／補位方向**：自帶率改為三態語義
+  `answered / (gap + answered)`——十次都被補問的面向不再被判成
+  「強項，不需要問」；從未出現的面向標為 unknown，不進策略摘要；
+  樣本 < 3 不下判斷。補位回答涵蓋的維度（`answered_categories`）
+  自 v0.9 起隨端點落盤。策略摘要措辭改為「目前觀察到」。
+- **修復二／記憶保真**：密碼表 `GOAL` 欄位改存使用者原話
+  （「我就直接取消」不再被改寫成「完成爬山活動」）；逗福的詮釋
+  保留在新增的 `DERIVED` 欄位並於 CODEBOOK 標明「非使用者原話、
+  衝突時以 GOAL 為準」。實測 50 對端點密碼表增幅 +21.3%（< 30% 門檻）。
+- **修復三／執行階段可見原話**：`execute_task` 與 `analyze_deviation`
+  新增 `raw_user_input`（後者含格式限制豁免——使用者要求簡短的正常
+  回覆不算偏差）、`execute_task` 另增 `confirmed_understanding`，
+  prompt 明示證據優先序（原話 > 確認過的理解 > 結構化欄位）。
+  未傳入時 prompt 與舊版完全一致，舊簽名 mock 以 TypeError 退化相容。
+
 ### 修正（畫像提取三連修，SAV 實測發現）
 
 - **繁中斷詞**：內建 jieba 官方繁簡合一大詞典（`resources/jieba/dict.txt.big`，

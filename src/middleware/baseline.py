@@ -72,6 +72,7 @@ def compute_baseline(
     constraint_raw_counter: Counter[str] = Counter()
     constraint_kw_counter: Counter[str] = Counter()
     gap_cat_counter: Counter[str] = Counter()
+    answered_cat_counter: Counter[str] = Counter()
     modification_counter: Counter[str] = Counter()
     modified_n = 0
 
@@ -86,6 +87,12 @@ def compute_baseline(
         for cat in sd.get("gap_categories") or []:
             if cat:
                 gap_cat_counter[cat.strip().lower()] += 1
+        # v0.9 修復一：正向計數。answered_categories 是使用者補位回答
+        # 涵蓋的維度（v0.9 起隨端點落盤），與 gap 計數合起來才能分辨
+        # 「常被補問」與「從未出現」。舊端點沒有此欄位 → 計 0。
+        for cat in sd.get("answered_categories") or []:
+            if cat:
+                answered_cat_counter[cat.strip().lower()] += 1
         if (sd.get("user_confirmation") or "").lower() == "modified":
             modified_n += 1
             mod_text = sd.get("user_modifications") or ""
@@ -110,6 +117,7 @@ def compute_baseline(
             "constraint_raw": dict(constraint_raw_counter),
             "constraint_kw": dict(constraint_kw_counter),
             "gap_cat": dict(gap_cat_counter),
+            "answered_cat": dict(answered_cat_counter),
             "modifications": dict(modification_counter),
         },
     }
@@ -217,40 +225,104 @@ _PACE_BRIEF: dict[str, str] = {
 STRATEGY_BRIEF_MAX_TOKENS = 100  # 注入量上限，約 3-5 句中文
 
 
+def _category_appearances(
+    baseline: dict[str, Any],
+) -> dict[str, tuple[int, int]]:
+    """回傳 {gap_category: (gap_hit, answered_hit)}，僅含出現過的類別。
+
+    gap_hit      = 這個面向被補問過幾次
+    answered_hit = 這個面向使用者答過幾次（v0.9 起隨端點落盤）
+    appeared     = gap_hit + answered_hit
+
+    appeared == 0 的類別不在回傳 dict 中——沒有資料，不得判定。
+    """
+    raw = baseline.get("_raw", {}) or {}
+    gap_raw = raw.get("gap_cat", {}) or {}
+    ans_raw = raw.get("answered_cat", {}) or {}
+    if not isinstance(gap_raw, dict):
+        gap_raw = {}
+    if not isinstance(ans_raw, dict):
+        ans_raw = {}
+    out: dict[str, tuple[int, int]] = {}
+    for cat in ALLOWED_GAP_CATEGORIES:
+        g = max(0, int(gap_raw.get(cat, 0)))
+        a = max(0, int(ans_raw.get(cat, 0)))
+        if g + a > 0:
+            out[cat] = (g, a)
+    return out
+
+
 def _category_self_mention_rate(
     baseline: dict[str, Any],
 ) -> dict[str, float]:
     """回傳 {gap_category: 自帶率}。
 
-    自帶率 = 此類別在 baseline 統計中出現的次數 / total_starts。
+    v0.9 修復一（語義變更）：
+        自帶率 = answered_hit / (gap_hit + answered_hit)
 
-    設計原則（v0.5+ 修正）：
-    - 沒出現 → 自帶率 0% → 盲區（使用者從未涉入過這個面向）
-    - 每次都出現 → 自帶率 100% → 強項（使用者每次都自己帶到）
+    分母是「這個面向出現過幾次」，不是 total_starts。從未出現的類別
+    **不在回傳 dict 中**（unknown——無資料，不得判定為盲區或強項）。
 
-    舊版（v0.5）用 `1 - hit/total`，會把「完全沒出現」判成「自帶率
-    100% 的強項」，策略摘要誤寫「此使用者強項：預算（自帶率 100%），
-    不需要問」。這與實際情況相反——沒出現代表沒證據，應視為盲區。
+    歷史脈絡（兩個舊公式各錯一半，根因是只有一種計數）：
+    - v0.5 用 `1 - gap/total`：從沒出現的面向被判成自帶率 100% 的強項。
+    - v0.5+ 用 `gap/total`：十次都被補問的面向被判成自帶率 100% 的強項
+      ——補問次數越多代表使用者越常漏，卻被當成「自帶」。
+    正解需要正向計數（answered_categories）供分子，出現次數當分母。
 
-    total_starts 為 0 時回空 dict。
+    函式名與回傳型別保留以免破壞呼叫端；分類判定請用
+    classify_categories()。total_starts 為 0 時回空 dict。
     """
     total = int(baseline.get("total_starts") or 0)
     if total <= 0:
         return {}
-    gap_raw = baseline.get("_raw", {}).get("gap_cat", {}) or {}
-    if not isinstance(gap_raw, dict):
-        return {}
-    rates: dict[str, float] = {}
+    return {
+        cat: a / (g + a)
+        for cat, (g, a) in _category_appearances(baseline).items()
+    }
+
+
+# 分類狀態常數（classify_categories 的回傳值）
+CAT_STRENGTH = "strength"          # 自帶率 >= 0.8：使用者通常自己帶到
+CAT_BLIND = "blind"                # 自帶率 < 0.3：常被補問
+CAT_CONTEXTUAL = "contextual"      # 0.3 <= 自帶率 < 0.8：看情境
+CAT_UNKNOWN = "unknown"            # 從未出現：無資料，不得判定
+CAT_INSUFFICIENT = "insufficient"  # 出現過但樣本 < 門檻：不下判斷
+
+_STRAT_MIN_SAMPLES = 3  # appeared >= 3 才下判斷（與 baseline 成熟門檻一致）
+
+
+def classify_categories(
+    baseline: dict[str, Any],
+    *,
+    min_samples: int = _STRAT_MIN_SAMPLES,
+) -> dict[str, str]:
+    """回傳 {gap_category: 狀態}，涵蓋全部 ALLOWED_GAP_CATEGORIES。
+
+    三態判定（v0.9 修復一）：
+        appeared == 0            → unknown（無資料）
+        appeared < min_samples   → insufficient（樣本不足，不下判斷）
+        自帶率 >= 0.8            → strength
+        自帶率 <  0.3            → blind
+        其餘                     → contextual
+    """
+    appearances = _category_appearances(baseline)
+    states: dict[str, str] = {}
     for cat in ALLOWED_GAP_CATEGORIES:
-        hit = int(gap_raw.get(cat, 0))
-        rate = hit / total
-        # 夾到 [0, 1]
-        if rate < 0:
-            rate = 0.0
-        if rate > 1:
-            rate = 1.0
-        rates[cat] = rate
-    return rates
+        if cat not in appearances:
+            states[cat] = CAT_UNKNOWN
+            continue
+        g, a = appearances[cat]
+        if g + a < min_samples:
+            states[cat] = CAT_INSUFFICIENT
+            continue
+        rate = a / (g + a)
+        if rate >= _STRAT_SKIP:
+            states[cat] = CAT_STRENGTH
+        elif rate < _STRAT_CONTEXTUAL:
+            states[cat] = CAT_BLIND
+        else:
+            states[cat] = CAT_CONTEXTUAL
+    return states
 
 
 def compute_strategy_brief(
@@ -269,23 +341,29 @@ def compute_strategy_brief(
             "優先補位通用面向（time/budget/venue/stakeholder）。"
         )
 
+    # v0.9 修復一：改用三態分類。unknown（從未出現）與 insufficient
+    # （樣本 < 3）完全不進策略摘要——沒有資料就不要對 LLM 說什麼。
     rates = _category_self_mention_rate(baseline)
-    if not rates:
-        return "此使用者基線尚未成熟，優先補位通用面向（time/budget/venue）。"
+    states = classify_categories(baseline)
+    judged = {
+        cat: rates[cat]
+        for cat, st in states.items()
+        if st in (CAT_STRENGTH, CAT_BLIND, CAT_CONTEXTUAL)
+    }
 
-    strengths: list[tuple[str, float]] = []   # 自帶率 > 80%
+    strengths: list[tuple[str, float]] = []   # 自帶率 >= 80%
     heavy_blind: list[tuple[str, float]] = [] # 自帶率 < 5%
     blind: list[tuple[str, float]] = []       # 自帶率 < 30%（含 heavy）
     contextual: list[tuple[str, float]] = []  # 30-80%
 
-    for cat, rate in rates.items():
-        if rate > _STRAT_SKIP:
+    for cat, rate in judged.items():
+        st = states[cat]
+        if st == CAT_STRENGTH:
             strengths.append((cat, rate))
-        elif rate < _STRAT_HEAVY_BLIND:
-            heavy_blind.append((cat, rate))
+        elif st == CAT_BLIND:
             blind.append((cat, rate))
-        elif rate < _STRAT_CONTEXTUAL:
-            blind.append((cat, rate))
+            if rate < _STRAT_HEAVY_BLIND:
+                heavy_blind.append((cat, rate))
         else:
             contextual.append((cat, rate))
 
@@ -303,13 +381,22 @@ def compute_strategy_brief(
         return "、".join(items)
 
     lines: list[str] = []
+    # v0.9：措辭改為「目前觀察到」——判定基於有限樣本，要反映不確定性。
+    # 無任何可判定類別（全是 unknown / 樣本不足）時，類別段只留一句
+    # 「尚未成熟」；節奏句照常附在後面，不提早 return。
+    if not judged:
+        # 通用面向清單與冷啟動訊息保持一致（Copilot review #11）
+        lines.append(
+            "此使用者基線尚未成熟，優先補位通用面向"
+            "（time/budget/venue/stakeholder）。"
+        )
     if blind:
         # 盲區優先寫出。v0.5+ 修正：把原本「回答中必須主動包含...，
         # 即使使用者沒問」改成條件觸發——只有在使用者的問題涉及決策、
         # 規劃、購買或行動時才帶出盲區提醒，純粹的資訊查詢或推薦（無
         # 資源投入）不觸發，避免 LLM 在聊天或查詢情境硬塞時間/預算提醒。
         lines.append(
-            f"此使用者盲區：{_fmt(blind, max_n=3)}。\n"
+            f"目前觀察到此使用者盲區：{_fmt(blind, max_n=3)}。\n"
             "當使用者的問題涉及決策、規劃、購買或行動時，"
             "回答中主動包含這些維度的提醒。\n"
             "純粹的資訊查詢或推薦（無資源投入）不觸發盲區提醒。"
@@ -320,7 +407,8 @@ def compute_strategy_brief(
         )
     if strengths:
         lines.append(
-            f"此使用者強項：{_fmt(strengths, max_n=2)}，不需要問這些面向。"
+            f"目前觀察到此使用者強項：{_fmt(strengths, max_n=2)}，"
+            "通常不需要再問這些面向。"
         )
     if contextual and not blind:
         lines.append(

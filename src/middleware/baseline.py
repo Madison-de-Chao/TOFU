@@ -385,8 +385,10 @@ def compute_strategy_brief(
     # 無任何可判定類別（全是 unknown / 樣本不足）時，類別段只留一句
     # 「尚未成熟」；節奏句照常附在後面，不提早 return。
     if not judged:
+        # 通用面向清單與冷啟動訊息保持一致（Copilot review #11）
         lines.append(
-            "此使用者基線尚未成熟，優先補位通用面向（time/budget/venue）。"
+            "此使用者基線尚未成熟，優先補位通用面向"
+            "（time/budget/venue/stakeholder）。"
         )
     if blind:
         # 盲區優先寫出。v0.5+ 修正：把原本「回答中必須主動包含...，

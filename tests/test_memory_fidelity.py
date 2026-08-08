@@ -69,6 +69,22 @@ class MemoryFidelityTests(unittest.TestCase):
         text = encode_retrieved_endpoints([row])
         self.assertNotIn("DERIVED:", text)
 
+    def test_long_input_negation_survives_truncation(self):
+        """Copilot review #11：決定性轉折出現在 80 字之後也不得被切掉。
+
+        GOAL 上限 80 → 160；此夾具為 90+ 字的單一長句，「取消」在句尾。"""
+        long_input = (
+            "這週末原本計畫跟公司同事還有兩位大學同學一起去陽明山走那條新開放的步道，"
+            "登山裝備、交通共乘和午餐地點都已經提前安排好了，"
+            "結果昨天晚上氣象預報說整個週末山區都會下大雨，"
+            "跟大家討論考慮之後我就直接取消，改天再說。"
+        )
+        self.assertGreater(len(long_input), 80)
+        row = _mk_row(user_input=long_input, goal="完成爬山活動")
+        text = encode_retrieved_endpoints([row])
+        goal_line = next(l for l in text.splitlines() if l.startswith("GOAL:"))
+        self.assertIn("取消", goal_line)
+
     def test_codebook_legend_explains_priority(self):
         """CODEBOOK 說明區塊必須講清楚 DERIVED 的來源與優先序。"""
         for legend in (CODEBOOK, MEMORY_CODEBOOK):

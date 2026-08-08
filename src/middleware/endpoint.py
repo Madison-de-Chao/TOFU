@@ -1065,7 +1065,11 @@ def encode_endpoint(
     )
 
     # GOAL（原話）+ DERIVED（逗福詮釋，僅在不同時輸出，避免重複佔 token）
-    g = _extract_first_sentence(user_input, max_len=80)
+    # GOAL 上限 160：原話比改寫後的 goal 長，80 字上限可能把句尾的
+    # 決定性轉折（「取消」「不要」「改天再說」）切掉，重演資訊遺失
+    # （Copilot review #11）。實測 50 條敘事原話最長 42 字，160 對現有
+    # 語料零成本。DERIVED 是壓縮過的詮釋，維持 80。
+    g = _extract_first_sentence(user_input, max_len=160)
     r = _extract_first_sentence(result, max_len=100)
     lines.append(f"GOAL: {g}")
     if derived_goal and derived_goal.strip() != (user_input or "").strip():

@@ -1219,7 +1219,7 @@ class LLMClient(BaseLLMClient):
                 + "\n\n---\n\n"
             )
 
-        # v0.6 PR-C：/propose 多輪累積上下文，嵌在密碼表之後、目標之前
+        # v0.6 PR-C：/propose 多輪累積上下文，嵌在記憶摘要區塊之後、目標之前
         extra_block = ""
         if extra_context:
             extra_block = (

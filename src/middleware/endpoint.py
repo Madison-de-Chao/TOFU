@@ -1133,7 +1133,8 @@ RESULT: what you yourself replied in that interaction. Read it to
   was off, just do better this round without announcing it."""
 
 
-# v0.5：LLM 每次 call 送出的密碼字典（CODEBOOK），≈ 50 tokens
+# v0.5：LLM 每次 call 送出的密碼字典（CODEBOOK）。
+# v0.9 加入記憶身分聲明與 RESULT 說明後 ≈ 250 tokens（994 字元）。
 # 依 20260416_端點檢索與元動機偵測_邏輯鏈_v0_5.md 第一塊定義。
 # 這條字串會注入 system prompt 讓 LLM 理解密碼表欄位的意義。
 #

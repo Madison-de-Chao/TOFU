@@ -973,11 +973,16 @@ class LLMClient(BaseLLMClient):
         goal: str,
         result: str,
         deviation: str,
+        raw_user_input: str = "",
     ) -> str:
         """P0-3：出口檢查——分析結果與目標的偏差原因。
 
         條件觸發：只有偏差偵測（detect_deviation）有觸發時才被呼叫。
         不額外消耗 API call。
+
+        v0.9 修復三：raw_user_input。出口檢查原本只收 goal/result/deviation，
+        看不到原話，無法判斷使用者是不是本來就要求簡短輸出——
+        「只回一個字母」的正常回覆會被判成偏差。預設空字串，向後相容。
         """
         if self.fallback_mode:
             return _fallback_analyze_deviation(goal, result, deviation)
@@ -989,9 +994,17 @@ class LLMClient(BaseLLMClient):
             "分析可能的原因，用 2-3 句話說明。\n"
             "區分：是理解偏差（逗福聽錯了）、執行偏差（方向對但結果不夠）、"
             "還是目標本身有矛盾。\n"
+            "若使用者在原話中明確限制了輸出格式（要求簡短、只回一個字母等），"
+            "符合該限制的簡短輸出**不算偏差**，直接說明即可。\n"
             "把你的分析明確標為「推測（Zone B）」，因為你不能確定哪一種。"
         )
+        raw_line = (
+            f"使用者原話（最高優先，衝突時以此為準）：{raw_user_input}\n"
+            if raw_user_input
+            else ""
+        )
         user_prompt = (
+            f"{raw_line}"
             f"原始目標：{goal}\n"
             f"執行結果：{result}\n"
             f"程式碼層偵測到的偏差：{deviation}\n"
@@ -1011,8 +1024,16 @@ class LLMClient(BaseLLMClient):
         encoded_top_k: str | None = None,
         output_mode: str = "default",
         extra_context: str | None = None,
+        raw_user_input: str = "",
+        confirmed_understanding: str = "",
     ) -> str:
         """根據確認後的目標產出一段建議或執行步驟。
+
+        v0.9 修復三：raw_user_input / confirmed_understanding。
+        一輪互動的三次呼叫各自獨立，第三次（本函式）原本只收到
+        goal/motivation/constraints——原話裡的決定性資訊（「我就直接取消」）
+        被改寫丟失，模型會與復述段自相矛盾。兩個參數預設空字串，
+        未傳入時 prompt 與舊版完全一致。
 
         v3.0 P0-6（修訂版 2026-04-12）：接受 user_profile 參數，在 system prompt
         中注入：
@@ -1203,9 +1224,30 @@ class LLMClient(BaseLLMClient):
                 + "\n\n---\n\n"
             )
 
+        # v0.9 修復三：原話證據塊。優先序必須明寫進 prompt——只把原話
+        # 加進去而不說哪個優先，模型可能仍跟隨位置更靠近任務指示的 goal。
+        raw_block = ""
+        if raw_user_input:
+            raw_block = (
+                "使用者原話（最高優先，與下方任何欄位衝突時以此為準）：\n"
+                f"{raw_user_input}\n\n"
+            )
+            if (
+                confirmed_understanding
+                and confirmed_understanding.strip() != raw_user_input.strip()
+            ):
+                raw_block += (
+                    "逗福確認過的理解：\n"
+                    f"{confirmed_understanding}\n\n"
+                )
+            raw_block += (
+                "以下是從上述內容整理的結構化欄位，可能有遺漏或改寫：\n"
+            )
+
         user_prompt = (
             f"{top_k_block}"
             f"{extra_block}"
+            f"{raw_block}"
             f"目標：{goal}\n"
             f"動機：{motivation or '（未提供）'}\n"
             f"限制條件：\n{cons_text}\n"

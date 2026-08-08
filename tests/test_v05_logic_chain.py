@@ -389,31 +389,35 @@ class StrategyBriefTests(unittest.TestCase):
         brief = compute_strategy_brief(compute_baseline([]))
         self.assertIn("冷啟動", brief)
 
-    def test_detects_blind_spot_time(self):
-        # v0.5+ 自帶率定義：出現次數 / 總數
-        # 10 筆端點、budget 每筆都出現 → 自帶率 100% → 強項
-        # 其他完全沒出現的類別 → 自帶率 0% → 重度盲區
+    def test_detects_blind_spot_budget(self):
+        # v0.9 三態語義：自帶率 = answered / (gap + answered)
+        # 10 筆端點、budget 每筆都被補問（gap）→ 自帶率 0% → 重度盲區。
+        # 舊語義（gap/total）會把這個情況判成「強項 100%，不需要問」——
+        # 那正是施工單修復一的 bug。
         rows = [_mk_start("a", gap_categories=["budget"]) for _ in range(10)]
         baseline = compute_baseline(rows)
         brief = compute_strategy_brief(baseline)
-        # budget 是強項（自帶率 100%）
+        # budget 是盲區（自帶率 0%）
         self.assertIn("預算", brief)
-        self.assertIn("強項", brief)
-        self.assertIn("100%", brief)
-        # 其他沒出現的類別是盲區
         self.assertIn("盲區", brief)
         self.assertIn("0%", brief)
+        # 常缺不得判成強項
+        self.assertNotIn("強項", brief)
+        # 從未出現的類別是 unknown，不得進策略摘要
+        self.assertNotIn("場地", brief)
+        self.assertNotIn("截止日", brief)
 
-    def test_empty_gap_categories_are_all_blind(self):
-        """使用者 bug report：跑一個全空 gap_categories 的端點集合
-        → 每個類別的自帶率都是 0%，全部應判為盲區，不是強項。"""
+    def test_empty_gap_categories_judge_nothing(self):
+        """v0.9 語義：全空 gap_categories → 所有類別從未出現（unknown）
+        → 不得判定為盲區也不得判定為強項——沒有資料就不對 LLM 說什麼。
+
+        （舊版此測試預期「全部判為盲區」，那是修復一之前的過渡語義：
+        無資料與常缺不可分時，才退而求其次全判盲區。）"""
         rows = [_mk_start("a", gap_categories=[]) for _ in range(5)]
         brief = compute_strategy_brief(compute_baseline(rows))
-        self.assertIn("盲區", brief)
-        # 不應該寫成「強項」，因為沒有資料能佐證使用者自帶
+        self.assertIn("尚未成熟", brief)
         self.assertNotIn("強項", brief)
-        # 自帶率應該是 0%，不是 100%
-        self.assertIn("0%", brief)
+        self.assertNotIn("盲區", brief)
         self.assertNotIn("100%", brief)
 
     def test_honors_decision_style_pace(self):
@@ -449,8 +453,9 @@ class StrategyBriefTests(unittest.TestCase):
         - **不得**出現原本的「必須主動包含」「即使使用者沒問」這種
           絕對語氣——那會讓 LLM 在純查詢情境硬塞預算/時間提醒
         """
-        # 10 筆端點，gap_categories 全空 → 所有類別自帶率 0% → 全部是盲區
-        rows = [_mk_start("a", gap_categories=[]) for _ in range(10)]
+        # v0.9：改用真的有 gap 資料的夾具（10 筆都補問 budget → 盲區），
+        # 全空 gap 在新語義下是 unknown、不會產生盲區提醒句。
+        rows = [_mk_start("a", gap_categories=["budget"]) for _ in range(10)]
         brief = compute_strategy_brief(compute_baseline(rows))
         # 條件觸發的關鍵字
         self.assertIn("決策", brief)

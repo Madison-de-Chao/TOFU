@@ -1035,18 +1035,26 @@ def encode_endpoint(
     endpoint_index: int = 0,
     session_ref: str = "",
     turn_ref: str = "",
+    derived_goal: str = "",
 ) -> str:
     """把一筆端點編碼成結構化標記。純程式碼。
 
     格式：
         [E{序號}] {日期} | {topic} | zone:{zone}
-        GOAL: {一句短語}
+        GOAL: {使用者原話}
+        DERIVED: {逗福理解的目標}   ← 僅在與原話不同時輸出（v0.9 修復二）
         RESULT: {一句短語}
         PREF_EXP: {明確偏好}
         PREF_IMP: {隱式偏好}
         AVOID: {排除偏好}
         KEY: {關鍵名詞}
         SRC: {session-turn ref}  ← 回查用
+
+    v0.9 修復二：GOAL 必須是使用者原話。改寫過的 goal（例如把
+    「我就直接取消，改天再說」改成「完成爬山活動」）會讓每一輪撈到
+    這條端點的模型讀到與事實相反的記憶。逗福的詮釋有參考價值，
+    保留在 DERIVED 欄位並標明來源，兩者衝突時以 GOAL 為準
+    （優先序寫在 CODEBOOK 說明區塊）。
     """
     lines: list[str] = []
 
@@ -1056,10 +1064,14 @@ def encode_endpoint(
         f"[E{endpoint_index:03d}] {session_date} | {topic} | zone:{zone_char}"
     )
 
-    # GOAL + RESULT
+    # GOAL（原話）+ DERIVED（逗福詮釋，僅在不同時輸出，避免重複佔 token）
     g = _extract_first_sentence(user_input, max_len=80)
     r = _extract_first_sentence(result, max_len=100)
     lines.append(f"GOAL: {g}")
+    if derived_goal and derived_goal.strip() != (user_input or "").strip():
+        d = _extract_first_sentence(derived_goal, max_len=80)
+        if d and d != g:
+            lines.append(f"DERIVED: {d}")
     lines.append(f"RESULT: {r}")
 
     # PREF 欄位
@@ -1105,7 +1117,9 @@ PREF_EXP: items the user explicitly said they like
 PREF_IMP: items inferred from user behavior (bought, watched, spent time on)
 AVOID: items the user wants to exclude or dislikes
 KEY: exact nouns from original conversation — never ignore these
-GOAL: what the user wanted in this interaction
+GOAL: the user's original words in this interaction
+DERIVED: Tofu's interpretation at the time — NOT the user's words.
+  When GOAL and DERIVED conflict, GOAL (the original words) wins.
 RESULT: what was provided"""
 
 
@@ -1116,6 +1130,9 @@ RESULT: what was provided"""
 # v0.5+：KEY 名詞可能附帶 `[status]` 標記（純程式碼偵測，非 LLM 判斷），
 # acquired / active / divested / abandoned 代表使用者對該物件的狀態方向。
 CODEBOOK = """## CODEBOOK
+GOAL: the user's original words in this interaction — highest authority
+DERIVED: Tofu's interpretation at the time — NOT the user's words.
+  When GOAL and DERIVED conflict, GOAL (the original words) wins.
 PREF_EXP: items the user explicitly said they like
 PREF_IMP: items inferred from user behavior
 AVOID: items the user wants to exclude
@@ -1356,8 +1373,11 @@ def encode_retrieved_endpoints(
         if not isinstance(raw_prefs, list):
             raw_prefs = []
 
+        # v0.9 修復二：原話優先。goal 是 LLM 改寫過的版本（「我就直接取消」
+        # 會變成「完成爬山活動」），只能當 fallback（舊端點沒有 user_input）。
         block = encode_endpoint(
-            user_input=sd.get("goal") or sd.get("user_input") or "",
+            user_input=sd.get("user_input") or sd.get("goal") or "",
+            derived_goal=sd.get("goal") or "",
             result=(ed.get("result") if isinstance(ed, dict) else "") or "",
             topic=topic,
             zone=zone,

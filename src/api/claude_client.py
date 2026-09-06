@@ -436,7 +436,7 @@ class LLMClient(BaseLLMClient):
         self._client = None
         self.fallback_mode = False
 
-        key = api_key or os.environ.get("CLAUDE_API_KEY")
+        key = api_key if api_key is not None else os.environ.get("CLAUDE_API_KEY")
         if not key or Anthropic is None:
             # 進入 fallback 模式：不呼叫 API，使用確定性回應
             self.fallback_mode = True

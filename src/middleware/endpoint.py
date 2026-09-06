@@ -495,6 +495,8 @@ class EndpointStore:
         self,
         endpoint_ids: list[str] | set[str],
         current_round: int,
+        *,
+        reactivate_pending: bool = True,
     ) -> int:
         """把命中端點的冷卻計數器更新。
 
@@ -516,12 +518,40 @@ class EndpointStore:
                     row["last_referenced"] = now_iso
                     row["reference_count"] = int(row.get("reference_count") or 0) + 1
                     row["round_last_referenced"] = int(current_round)
-                    if row.get("status") == "pending_confirmation":
+                    if reactivate_pending and row.get("status") == "pending_confirmation":
                         row["status"] = "active"
                     touched += 1
             return touched > 0, touched
 
         return self._rewrite_locked(_mutate)
+
+    def resolve_memory(self, endpoint_id: str, status: str) -> bool:
+        """Explicit human resolution (§8.1.5); retain previous status in an audit trail.
+
+        Resolves the entire start/end event, without deleting old content.
+        The caller must obtain the user's decision; retrieval is not consent.
+        """
+        if status not in {"active", "superseded"}:
+            raise ValueError("status 必須是 active 或 superseded")
+
+        def mutate(data):
+            target = next((r for r in data if r.get("endpoint_id") == endpoint_id), None)
+            if target is None:
+                return False, False
+            event_id = target.get("event_id")
+            for row in data:
+                if row is target or (event_id and row.get("event_id") == event_id):
+                    previous = row.get("status", "active")
+                    row.setdefault("status_history", []).append({
+                        "from": previous, "to": status, "source": "user_decision", "timestamp": _now_iso(),
+                    })
+                    row["status"] = status
+                    if status == "active":
+                        row["last_referenced"] = _now_iso()
+                        row["round_last_referenced"] = sum(r.get("type") == "start" for r in data)
+            return True, True
+
+        return self._rewrite_locked(mutate)
 
     def apply_cooldown(
         self,

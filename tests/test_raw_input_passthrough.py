@@ -21,7 +21,7 @@ class _PromptCapturingClient(LLMClient):
     """攔截 _call，記錄 execute_task 實際組出的 prompt。"""
 
     def __init__(self):
-        super().__init__(api_key="__TEST__")
+        super().__init__(api_key="")  # prompt-only test: never instantiate a network SDK
         self.fallback_mode = False
         self._client = object()  # 不會被用到
         self.captured = {}

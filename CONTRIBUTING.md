@@ -4,7 +4,7 @@
 
 ## 回報問題
 
-到 [Issues](../../issues) 開票，附上：
+到 [Issues](https://github.com/Madison-de-Chao/TOFU/issues) 開票，附上：
 
 1. 你做了什麼（操作步驟）
 2. 你預期會發生什麼
@@ -26,8 +26,7 @@
 ```bash
 git clone https://github.com/madison-de-chao/tofu.git
 cd tofu
-pip install -r requirements.txt
-pip install jieba
+python -m pip install -e '.[dev,claude]'
 python -m pytest tests/ -v
 ```
 
@@ -37,7 +36,7 @@ python -m pytest tests/ -v
 
 - **確認後才記** — 任何寫入使用者記憶的行為都必須經過復述確認，不允許 AI 自己決定記什麼
 - **補位而非替代** — 逗福幫使用者想清楚，不替使用者做決定
-- **本機優先** — 使用者的記憶和畫像資料不上傳
+- **本機優先** — 完整記憶保留本機；API 只傳當次需要的資料，需準確揭露傳輸範圍
 - **模型中立** — 不綁定特定 AI 模型，換模型不影響記憶
 - **誠實標記** — 事實、推測、建議必須分層標記，不混為一談
 

@@ -13,6 +13,8 @@ v3.0 核心模組。畫像的作用是搜索策略觸發器——根據使用者
 
 from __future__ import annotations
 
+from src.middleware.preferences import merge_preferences
+
 import json
 import os
 import re
@@ -139,6 +141,9 @@ class ProfileStore:
             return _default_profile()
 
     def save(self, profile: dict[str, Any]) -> None:
+        if isinstance(profile.get("interest_map"), dict):
+            im = profile["interest_map"]
+            im["preferences"] = merge_preferences(im.get("preferences", []), [])
         profile["meta"]["last_updated"] = _now_iso()
         if not profile["meta"].get("profile_created"):
             profile["meta"]["profile_created"] = _now_iso()
@@ -232,13 +237,9 @@ class ProfileStore:
         user_input = start_data.get("user_input", "")
         if user_input:
             new_prefs = extract_preferences([{"user_input": user_input}])
-            existing_items = {
-                p["item"] for p in profile["interest_map"].get("preferences", [])
-            }
-            for p in new_prefs:
-                if p["item"] not in existing_items:
-                    profile["interest_map"]["preferences"].append(p)
-                    existing_items.add(p["item"])
+            profile["interest_map"]["preferences"] = merge_preferences(
+                profile["interest_map"].get("preferences", []), new_prefs,
+            )
 
             # 提取興趣領域
             new_domains = extract_domains([{"user_input": user_input}])

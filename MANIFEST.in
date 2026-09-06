@@ -1,0 +1,4 @@
+include .env.example requirements.txt CONTRIBUTING.md ROADMAP.md CHANGELOG.md
+include docs/OPERATIONS_v1.md docs/WHITEPAPER_ALIGNMENT_v1.md docs/VALIDATION_v1.md
+recursive-include tests *.py
+recursive-include resources *.txt

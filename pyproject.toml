@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tofu-cognitive-middleware"
+version = "0.2.0b1"
+description = "逗福 Tofu — local-first cognitive middleware"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = ["python-dotenv>=1.0,<2", "jieba==0.42.1", "filelock>=3.12,<4"]
+
+[project.optional-dependencies]
+claude = ["anthropic>=0.39,<2"]
+dev = ["pytest>=8,<10", "build>=1,<2"]
+
+[project.scripts]
+tofu = "src.main:cli"
+
+[tool.setuptools.packages.find]
+include = ["src*", "resources*"]
+
+[tool.setuptools.package-data]
+resources = ["jieba/dict.txt.big"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

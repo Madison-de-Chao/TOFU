@@ -95,8 +95,7 @@ class TransportTests(unittest.TestCase):
                 with self.assertRaises(LLMClientError):
                     c._call("s", "u")
 
-    def test_invalid_remote_plaintext_or_credentials_rejected(self):
-        for url in ["http://example.com/v1", "https://user:secret@example.com/v1", "https://example.com/v1?k=secret"]:
+        for url in ["http://example.com/v1", "https://user:pass@example.com/v1", "https://example.com/v1?k=secret"]:
             with self.subTest(url=url), self.assertRaises(ValueError):
                 self.client(base_url=url)
 

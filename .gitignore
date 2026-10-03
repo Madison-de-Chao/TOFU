@@ -10,6 +10,12 @@ data/user_profile.json
 data/*.bak
 data/*.tmp
 data/words/
+data/sessions/
+data/zone_history.jsonl
+data/*.lock
+data/*.jsonl.*
+data/*export*.md
+data/black_box*
 
 # Python
 __pycache__/

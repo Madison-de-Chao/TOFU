@@ -544,19 +544,25 @@ def check_trajectory_convergence(
 ) -> bool:
     """檢查最近 N 筆目標是否往危險方向收斂。
 
-    不是看單一關鍵字（那是關鍵字過濾）。
-    是看連續多筆目標是否都指向同一個危險方向。
+    這是連續多輪關鍵詞代理指標，不是完整的語意收斂模型。
+    英文使用詞邊界與有限動詞變化，避免 The Killers 樂團名誤觸發。
 
     - 單一筆出現危險詞不觸發（可能只是在討論新聞）
     - 連續 threshold 筆都出現才觸發（趨勢收斂）
     """
+    if threshold < 1:
+        raise ValueError("threshold 必須至少為 1")
     if not recent_goals or len(recent_goals) < threshold:
         return False
 
     recent = recent_goals[-threshold:]
     danger_count = sum(
         1 for goal in recent
-        if any(kw.lower() in (goal or "").lower() for kw in DANGER_KEYWORDS)
+        if any(
+            (bool(re.search(r"\b" + re.escape(kw) + r"(?:s|ed|ing)?\b", goal or "", re.I))
+             if kw.isascii() else kw in (goal or ""))
+            for kw in DANGER_KEYWORDS
+        )
     )
     return danger_count >= threshold
 
@@ -970,14 +976,8 @@ _VAGUE_SOURCE_PHRASES = [
 ]
 
 _SPECIFIC_SOURCE_RE = re.compile(
-    r"(?:"
-    r"\d{4}\s*年"              # 年份
-    r"|第\s*[\d一二三四五六七八九十]+\s*章"  # 章節引用
-    r"|vol\.\s*\d+"            # 期刊卷號
-    r"|https?://"              # URL
-    r"|p\.\s*\d+"              # 頁碼
-    r"|第\s*\d+\s*頁"          # 頁碼（中文）
-    r")",
+    r"https?://[^\s<>]+|doi:\s*10\.\d{4,9}/\S+|"
+    r"《[^》]+》[^\n]{0,60}(?:第\s*[\d一二三四五六七八九十]+\s*[章頁]|p\.\s*\d+)",
     re.IGNORECASE,
 )
 

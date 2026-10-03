@@ -1,0 +1,1 @@
+"""Packaged Tofu tokenizer resources."""

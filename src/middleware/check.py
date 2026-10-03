@@ -69,6 +69,7 @@ def create_session(
     user_content: str,
     *,
     session_id: str | None = None,
+    lookup_audit: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """建立新的 /check session 並寫入磁碟。
 
@@ -84,6 +85,7 @@ def create_session(
         "stage1_output": None,
         "created_at": _iso(_now()),
         "mode": "check",
+        "lookup_audit": lookup_audit,
     }
     path = _session_path(session_dir, sid)
     _atomic_write_json(path, session)

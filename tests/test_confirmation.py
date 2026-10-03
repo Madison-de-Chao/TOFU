@@ -120,12 +120,12 @@ class CheckFalsificationTests(unittest.TestCase):
 
 
 class CheckSourceTraceabilityTests(unittest.TestCase):
-    def test_zone_a_with_specific_year(self):
+    def test_zone_a_year_without_named_source_is_not_traceable(self):
         text = "根據 2023 年的研究報告，結果顯示..."
         result = check_source_traceability(text, zone="A")
         self.assertTrue(result["needs_check"])
-        self.assertTrue(result["has_specific_source"])
-        self.assertFalse(result["should_downgrade"])
+        self.assertFalse(result["has_specific_source"])
+        self.assertTrue(result["should_downgrade"])
 
     def test_zone_a_with_url(self):
         text = "詳見 https://example.com/report"

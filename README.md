@@ -4,12 +4,22 @@
 > Ask the right question before getting the right answer.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen)]()
-[![Cost](https://img.shields.io/badge/cost-US%240.01%2Finteraction-blue)]()
+[![Tests](https://github.com/Madison-de-Chao/TOFU/actions/workflows/tests.yml/badge.svg)](https://github.com/Madison-de-Chao/TOFU/actions/workflows/tests.yml)
+
 
 **🌐 線上版 — 不用安裝，打開瀏覽器就能用：[tofu.maisondechao.com](https://tofu.maisondechao.com/)**
 
 ---
+
+## 白皮書對齊版 0.2.0b1
+
+這是可安裝、可驗證的技術預覽版。新增 OpenAI 相容後端、輸出前逐行資訊分層、來源檢查、有限次數提案重試、可追溯記憶預算與舊記憶確認指令。
+
+- [白皮書對照與待決規格](docs/WHITEPAPER_ALIGNMENT_v1.md)：逐項區分已實作、部分實作與尚未驗證。
+- [執行與整合指南](docs/OPERATIONS_v1.md)：安裝、五模式、後端設定、資料流與驗證。
+- [本輪驗證紀錄](docs/VALIDATION_v1.md)：測試基線、修正與實測限制。
+
+規則式檢查與自動化測試不等於事實已獨立驗證，也不能證明模型不會產生幻覺。
 
 ## 這是什麼？
 
@@ -43,38 +53,23 @@ Tofu is a cognitive middleware layer that sits between you and your AI. Before t
 
 ---
 
-## 核心數據
+## 歷史實測與當前驗證
 
-| 項目 | 數字 |
-|------|------|
-| 實測互動 | 244 筆，零錯誤 |
-| 總費用 | US$2.57（約 NT$80） |
-| 每次互動成本 | 約 US$0.01（約 NT$0.3） |
-| 測試通過 | 656 項 |
-| 推薦模型 | Claude Haiku（最便宜） |
+白皮書記錄了 244 筆完成互動、US$2.57 總費用，以及 19 題模型對比。這些屬於特定模型、題組與時間的歷史資料，**本輪未重跑付費模型評測**。歷史測試中的「零錯誤」不可延伸為零幻覺保證；AI 評審也不是獨立事實來源。
 
-### 小模型打贏大模型
+當前程式是否通過回歸檢查，請看上方 CI 與 [驗證紀錄](docs/VALIDATION_v1.md)，不以固定 badge 數字替代實際執行。API 費用依模型、實際 token、重試及供應商帳單計算；9,000 字元是記憶傳輸預算，不是固定 token 數或總費用上限。
 
-同題測試 19 題，Haiku（US$0.01/次）+ 逗福的補位品質 **超過** Opus（US$2.05/次）。
+## 架構選擇
 
-- Haiku Level 3 補位率：58%
-- Opus Level 3 補位率：53%
-- 費用差距：**194 倍**
-
-我們把逗福 + Haiku 的輸出拿給 10 個 AI 盲測。8 個判定是旗艦級品質。0 個猜到用的是最便宜的模型。
-
----
-
-## 跟其他工具的差異
-
-| | 一般 AI 記憶工具 | 逗福Tofu |
-|---|---|---|
-| 寫入確認 | AI 自己決定記什麼 | 復述確認，你同意才記 |
-| 補位能力 | 無 | 七維度主動補位 |
-| 品質標記 | 無 | 事實／推測／建議 三層標記 |
-| 儲存趨勢 | 越用越多 O(n) | 收斂（只存起點和終點） |
-| 跨模型 | 通常綁定單一 AI | 不綁定，換模型不丟記憶 |
-| 中文優化 | 通常沒有 | jieba 中文分詞 + 中文停用詞 |
+| 面向 | 逗福目前行為 |
+|---|---|
+| 確認 | default 模式復述後確認；快捷模式保留原始輸入與模式來源 |
+| 補位 | 七維度提示、跨輪去重與最多五輪收斂 |
+| 資訊分層 | 輸出前逐行標記 A/B/C，未附來源的事實陳述降級 |
+| 儲存 | 本機保留 start/end；總量仍隨互動成長，不宣稱常數儲存 |
+| 傳輸 | 常規互動歷史最多 30 筆、9,000 字元；不傳完整端點庫 |
+| 後端 | Claude、OpenAI Chat Completions 相容後端、離線模式 |
+| 語言 | jieba 繁簡大詞典與中英文停用詞；不等同多語意圖理解已驗證 |
 
 ---
 
@@ -96,15 +91,19 @@ git clone https://github.com/madison-de-chao/tofu.git
 cd tofu
 
 # 2. 安裝套件
-pip install -r requirements.txt
-pip install jieba  # 選裝，中文分詞品質更好
+python -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -e '.[claude,dev]'
+cp .env.example .env
 
 # 3. 設定 API Key（推薦 Claude Haiku）
 # 到 console.anthropic.com 取得 API key
+export TOFU_PROVIDER=claude
+export TOFU_MODEL=claude-haiku-4-5-20251001
 export CLAUDE_API_KEY=sk-ant-你的key
 
 # 4. 啟動
-python src/main.py
+tofu
 ```
 
 沒有 git？到 GitHub 頁面點 **Code → Download ZIP**，解壓縮後進入資料夾。
@@ -115,7 +114,7 @@ python src/main.py
 
 ```bash
 python -m pytest tests/ -v
-# 預期：656 項測試全部通過
+# 以實際執行結果與 docs/VALIDATION_v1.md 為準
 ```
 
 ---
@@ -150,7 +149,10 @@ python -m pytest tests/ -v
 | `/stats` | 互動數、修正率、品質分布 |
 | `/history` | 最近 5 筆互動摘要 |
 | `/export` | 端點紀錄匯出為 Markdown |
-| `/reset` | 清除所有紀錄（需二次確認） |
+| `/memory` | 檢視待確認的舊記憶 |
+| `/memory confirm <ID>` | 明確確認舊記憶仍適用 |
+| `/memory supersede <ID>` | 停用舊記憶，保留原文與狀態歷史 |
+| `/reset` | 清除端點紀錄（需二次確認；不清除獨立畫像） |
 
 ---
 
@@ -221,11 +223,13 @@ python -m pytest tests/ -v
 
 逗福不取代 AI，它確保問題在生成答案之前被正確建構。
 
-記憶儲存在你本機的 `data/` 資料夾，不上傳。換電腦只要複製 `data/` 資料夾。換 AI 模型不丟記憶。
+完整記憶儲存在本機。原始碼 checkout 預設為 `data/`，安裝套件預設為 `~/.tofu/`；可用 `TOFU_DATA_DIR` 指定隔離目錄。使用雲端模型時，當次輸入、確認內容、選中的歷史與策略摘要會送給所選供應商；Claude 詞性標記另有背景呼叫。換模型不會搬移或刪除記憶。
 
 ### 模型後端
 
-目前內建實作 **Claude（Anthropic）** 後端，推薦 Claude Haiku。底層採 `BaseLLMClient` 抽象介面設計，**模型中立、可自行串接其他模型**——只要實作這個介面，就能接上 OpenAI、DeepSeek 或任何相容後端，記憶與框架完全不需更動。未設定 API key 時自動進入離線 fallback 模式。
+內建 **Claude（Anthropic）** 與 **OpenAI Chat Completions 相容後端**。使用 `TOFU_PROVIDER` 選擇後端、`TOFU_MODEL` 明確指定模型。OpenAI 相容後端可設定 `OPENAI_BASE_URL`；只支援同步文字 Chat Completions，不支援工具呼叫、串流或 Anthropic Batch API。共用復述、補位、解析及任務提示，不額外建立 Anthropic 客戶端。
+
+未設定 key 時可使用離線模板；`TOFU_PROVIDER=offline` 可明確禁止主流程和背景詞性標記呼叫模型。離線模板用來驗證操作流程，**不是 AI 已完成分析**。
 
 ---
 
@@ -234,10 +238,10 @@ python -m pytest tests/ -v
 這是技術預覽版（Public Beta）。以下是目前已知的限制，我們選擇公開而不是隱藏：
 
 - **偏好提取率偏低**：244 筆互動提取到 45 個偏好（18.4%），隱式偏好是結構性難題
-- **偏好清單可能有重複條目**：去重功能開發中
-- **長記憶截斷**：端點超過 250 筆時，早期的具體細節會被壓縮
+- **隱式偏好提取仍有限**：已加入字形、大小寫與空白正規化去重，保留證據及否定類型；語義同義詞不自動合併
+- **檢索與編碼可能遺漏細節**：本機記錄保留，但傳輸選取有 30 筆／9,000 字元上限，摘要仍可能漏掉關鍵轉折
 - **介面為 CLI**：本機版目前是命令列操作（網頁版已上線 [tofu.maisondechao.com](https://tofu.maisondechao.com/)，桌面版製作中）
-- **英文停用詞覆蓋不完整**：英文場景下有噪音
+- **英文語義仍需測試**：停用詞已擴充；The Killers 名稱誤判有回歸測試，但 CIP-X 仍是多輪關鍵詞代理指標
 - **未經大規模使用者驗證**：目前數據來自單一開發者的密集測試
 
 ---
@@ -246,16 +250,7 @@ python -m pytest tests/ -v
 
 詳見 [ROADMAP.md](ROADMAP.md)
 
-近期：
-- [ ] 桌面版（一鍵安裝，不需要 Python）
-- [x] 網頁版（瀏覽器直接使用）— 已上線 [tofu.maisondechao.com](https://tofu.maisondechao.com/)
-- [ ] 偏好去重與結構化
-- [ ] 補位提問去重優化
-
-中期：
-- [ ] 多語系支援強化
-- [ ] 使用者畫像匯入（從其他 AI 帶過來）
-- [ ] 螺旋上升效果驗證（Round 2/3）
+本輪已補偏好正規化去重與跨模型後端。後續優先處理白皮書待決規格、Round 4 實測與畫像匯入入口；桌面版與既有網站整合另列產品工作。狀態以 ROADMAP 與白皮書對照表為準。
 
 ---
 
@@ -265,7 +260,7 @@ python -m pytest tests/ -v
 
 他設計的不是程式碼，是一套思考框架。程式碼只是讓框架跑起來的工具。
 
-逗福的核心發現：**決定品質的是問對問題的流程，不是模型的大小。** 最便宜的模型加上正確的框架，打贏最貴的旗艦模型。
+逗福要驗證的核心主張：**先對齊問題與思考流程，能否改善模型輸出的適用性。** 白皮書的小模型比較限於特定題組與框架，不推及所有任務。
 
 ## 白皮書
 
@@ -273,7 +268,7 @@ python -m pytest tests/ -v
 
 📄 [逗福Tofu 白皮書 v1.0（PDF，53 頁）](docs/逗福Tofu_白皮書_v1.0.pdf)
 
-白皮書同樣採用 Apache License 2.0 授權。
+白皮書文件授權與程式碼分離；依本輪提供的白皮書「版權聲明與使用授權」為準，不適用程式碼的 Apache 2.0 授權。
 
 ## 體系歸屬
 
@@ -287,16 +282,13 @@ python -m pytest tests/ -v
 
 ## 授權
 
-[Apache License 2.0](LICENSE) — 自由使用、修改、散布、商用。
-唯一條件：保留著作權聲明與授權副本，散布修改版時標註所做變更。
-
-程式碼與白皮書文件均採用 Apache 2.0 授權。
+程式碼使用 [Apache License 2.0](LICENSE)，完整條款以 LICENSE 與 NOTICE 為準。白皮書文件使用其獨立授權，兩者互不覆蓋。
 
 ---
 
 ## 回報問題
 
-遇到問題請到 [Issues](../../issues) 回報。附上：
+遇到問題請到 [Issues](https://github.com/Madison-de-Chao/TOFU/issues) 回報。附上：
 1. 你做了什麼
 2. 預期行為
 3. 實際行為

@@ -29,6 +29,9 @@ except ImportError:
     pass
 
 from src.api.claude_client import LLMClient, LLMClientError, build_atl3_retry_hint
+from src.api.factory import create_client
+from src.middleware.delivery import audit_delivery, render_delivery
+from src.middleware.lookup import pack_lookup
 from src.middleware import baseline as baseline_mod
 from src.middleware import confirmation as confirm_mod
 from src.middleware import intake_form as form_mod
@@ -88,34 +91,40 @@ from src.middleware.word_tagger import (
 from src.middleware.word_index import WordIndexStore
 
 
+# Editable source checkouts retain data/; installed wheels use a writable home directory.
+_DATA_ROOT = Path(os.getenv("TOFU_DATA_DIR") or (
+    str(_PROJECT_ROOT / "data") if (_PROJECT_ROOT / ".git").exists()
+    else str(Path.home() / ".tofu")
+)).expanduser()
+
 # v0.6 PR-E：production 端點檔升級為 JSONL（append-only + filelock）。
 # legacy `data/endpoints.json` 存在時 EndpointStore 會自動 migrate。
 DATA_PATH = os.environ.get(
     "TOFU_ENDPOINTS_PATH",
-    str(_PROJECT_ROOT / "data" / "endpoints.jsonl"),
+    str(_DATA_ROOT / "endpoints.jsonl"),
 )
 
 PROFILE_PATH = os.environ.get(
     "TOFU_PROFILE_PATH",
-    str(_PROJECT_ROOT / "data" / "user_profile.json"),
+    str(_DATA_ROOT / "user_profile.json"),
 )
 
 # v0.6 PR-D：/check 模式的 session state 目錄
 SESSIONS_DIR = os.environ.get(
     "TOFU_SESSIONS_DIR",
-    str(_PROJECT_ROOT / "data" / "sessions"),
+    str(_DATA_ROOT / "sessions"),
 )
 
 # v4.0 P0-2：ATL-4 跨輪一致性歷史檔（per-user JSONL）
 ZONE_HISTORY_PATH = os.environ.get(
     "TOFU_ZONE_HISTORY_PATH",
-    str(_PROJECT_ROOT / "data" / "zone_history.jsonl"),
+    str(_DATA_ROOT / "zone_history.jsonl"),
 )
 
 # v0.6 PR-E：詞性分類檔目錄（data/words/）
 WORDS_DIR = os.environ.get(
     "TOFU_WORDS_DIR",
-    str(_PROJECT_ROOT / "data" / "words"),
+    str(_DATA_ROOT / "words"),
 )
 
 # v0.6 PR-E：模組層級的 tagger/guardrail/word_store 懶初始化（每 process 一份）。
@@ -151,6 +160,10 @@ def _try_tag_endpoint(
     - Rule 2：格式錯誤 → 在 HaikuWordTagger 內部重試一次，仍失敗 → null。
     - Rule 3：背景補標 job 為可選優化，不進 PR-E。
     """
+    # Selecting another provider or offline mode must not call Anthropic using
+    # an unrelated ambient key. Optional word tagging is Claude-only for now.
+    if os.getenv("TOFU_PROVIDER", "claude").lower() != "claude":
+        return
     try:
         tagger, guardrail, word_store = _get_word_pipeline()
         text = f"{user_input}\n{result}".strip()
@@ -209,6 +222,7 @@ HELP_ITEMS: list[tuple[str, str]] = [
     ("/form", "顯示個人化提問單（累積 5 筆互動後可用）"),
     ("/baseline", "顯示目前的邏輯基線摘要"),
     ("/history", "顯示最近 5 筆互動的摘要"),
+    ("/memory [confirm|supersede <端點ID>]", "檢視待確認記憶，或明確確認／停用"),
     ("/stats", "顯示使用統計（修正率、滿意度、常被補位面向、Zone 分布）"),
     ("/blackbox", "顯示最近的黑盒子回溯紀錄（偏差觸發時自動記錄）"),
     ("/profile", "顯示使用者畫像（溝通風格、偏好、滿意度）"),
@@ -590,7 +604,12 @@ def run_one_interaction(
         endpoints, user_input, top_k=DEFAULT_TOP_K,
         recent_floor_n=RECENT_FLOOR_N,
     )
-    encoded_top_k = encode_retrieved_endpoints(top_rows) if top_rows else ""
+    top_rows, encoded_top_k, lookup_audit = pack_lookup(
+        top_rows, categories=baseline_mod.ALLOWED_GAP_CATEGORIES,
+    )
+    if lookup_audit["pending_confirmation_ids"]:
+        _print("[逗福Tofu] 本輪參考含待確認舊記憶；輸入 /memory 檢視並確認或停用。")
+    known_gap_cats = lookup_audit["known_categories"]
     # 暫存命中 ids；mark_hit 延到互動成功（end 寫入後）才執行，
     # 避免 restate 失敗或使用者中止時產生「虛假命中」（#PR review）。
     pending_hit_ids = {
@@ -967,6 +986,7 @@ def run_one_interaction(
     # 所有模式產出的端點都帶 mode，baseline 統計會排除 mode == 'check'（PR-D
     # 後才會出現的值），確保 /check 的事實查核內容不污染使用者畫像。
     persisted_start["mode"] = mode
+    persisted_start["lookup_audit"] = lookup_audit
     # v4.0 P1：冷卻模式旗標寫進 start_data，供事後分析
     persisted_start["cooling_mode"] = cooling_mode
     # 意圖分流（規格 06209671 §2.2）：只在 default 路徑生效。
@@ -1095,7 +1115,9 @@ def run_one_interaction(
                     f"[逗福Tofu] 重寫失敗：{retry_exc}，保留原回應。"
                 )
 
-    _print(f"[逗福Tofu 執行] {result}")
+    delivery_audit = audit_delivery(result, mode=output_mode,
+        degraded=bool(atl3_gate_result.get("degraded") or evasion_retry_degraded))
+    _print("[逗福Tofu 執行] " + render_delivery(delivery_audit))
 
     # 7. 滿意度收集（依間隔）
     satisfaction = "no_feedback"
@@ -1113,7 +1135,8 @@ def run_one_interaction(
     # v0.6 PR-G step 2：記錄迴避句型重試是否降級（分析用）
     end_data["evasion_retry_degraded"] = evasion_retry_degraded
     # P0-1：記錄 result 的 Zone 分類
-    end_data["zone"] = confirm_mod.classify_zone(result)
+    end_data["delivery_audit"] = delivery_audit
+    end_data["zone"] = delivery_audit["zone"]
     if reason:
         end_data["unsatisfied_reason"] = reason
 
@@ -1266,7 +1289,7 @@ def run_one_interaction(
         _print(
             "[逗福Tofu] 結果與目標有落差，已記錄回溯資料。輸入 /blackbox 可查看。"
         )
-        _print(f"[逗福Tofu 出口檢查] {analysis}")
+        _print("[逗福Tofu 出口檢查] " + render_delivery(audit_delivery(analysis)))
 
     end_row = store.append_end(event_id=event_id, end_data=end_data)
     _print("[端點已記錄]")
@@ -1280,7 +1303,7 @@ def run_one_interaction(
 
     # v0.5：互動成功寫入 end 後才 mark_hit，避免虛假命中
     if pending_hit_ids:
-        store.mark_hit(pending_hit_ids, current_round=current_round)
+        store.mark_hit(pending_hit_ids, current_round=current_round, reactivate_pending=False)
 
     # v0.5 護欄：一次完整互動結束，累積一次 session
     if guardrails is not None:
@@ -1391,7 +1414,11 @@ def run_propose_mode(
         endpoints, user_input, top_k=DEFAULT_TOP_K,
         recent_floor_n=RECENT_FLOOR_N,
     )
-    encoded_top_k = encode_retrieved_endpoints(top_rows) if top_rows else ""
+    top_rows, encoded_top_k, lookup_audit = pack_lookup(
+        top_rows, categories=baseline_mod.ALLOWED_GAP_CATEGORIES,
+    )
+    if lookup_audit["pending_confirmation_ids"]:
+        _print("[逗福Tofu] 本輪參考含待確認舊記憶；輸入 /memory 檢視並確認或停用。")
     pending_hit_ids = {
         row.get("endpoint_id") for row in top_rows if row.get("endpoint_id")
     }
@@ -1419,6 +1446,8 @@ def run_propose_mode(
         "constraints": [],
         "gap_categories": [],
         "mode": "propose",
+        "lookup_audit": lookup_audit,
+        "memory_authorization": "explicit_mode_raw_input",
         "zone": confirm_mod.classify_zone(user_input),
         "topic": confirm_mod.infer_topic(user_input, []),
         # v4.1：/propose 的自問自答迴圈不走補位收斂閘門，三欄位填預設值保一致。
@@ -1570,58 +1599,19 @@ def run_propose_mode(
                 "execution_error": str(exc),
             }
 
-        # v0.6 PR-G step 2：PROPOSE_FINAL 迴避句型偵測 + 重試一次
-        # MOMO 2026-04-16 bug report Bug 2：最終提案交出的是「我建議你先從 X
-        # 選出」這種偽裝成提案的反問。Prompt 禁令不完全可靠 → runtime 偵測。
-        if (
-            not getattr(client, "fallback_mode", False)
+        # All final rewrites stay inside the bounded ATL-3 loop. A later rewrite
+        # must not bypass its final validation or create a fourth generation.
+        final_evasion_retry_degraded = bool(
+            propose_atl3_gate_result.get("degraded")
             and is_evasive_response(final_text, "propose_final")
-        ):
-            hits = detect_evasion_phrases(final_text)
-            can_retry = True
-            if guardrails is not None:
-                try:
-                    guardrails.check_before_call()
-                except GuardrailTripped:
-                    can_retry = False
-            if can_retry:
-                retry_hint = build_retry_hint(hits)
-                combined_context = retry_hint + (
-                    format_propose_history(rounds_history) or ""
-                )
-                try:
-                    retry_final = _call_execute_task(
-                        client=client,
-                        goal=user_input,
-                        motivation="",
-                        constraints=[],
-                        user_profile=user_profile_data,
-                        strategy_brief=strategy_brief,
-                        encoded_top_k=encoded_top_k,
-                        output_mode="propose_final",
-                        extra_context=combined_context,
-                    )
-                    if guardrails is not None:
-                        guardrails.record_call()
-                    if is_evasive_response(retry_final, "propose_final"):
-                        final_text = mark_degraded(retry_final)
-                        final_evasion_retry_degraded = True
-                        _print(
-                            "[逗福Tofu /propose] 交卷連續兩次偵測到迴避句型，"
-                            "本提案已標記為降級。"
-                        )
-                    else:
-                        final_text = retry_final
-                        _print(
-                            "[逗福Tofu /propose] 交卷首次含迴避句型，已自動重寫。"
-                        )
-                except LLMClientError as retry_exc:
-                    _print(
-                        f"[逗福Tofu /propose] 交卷重寫失敗：{retry_exc}，保留原提案。"
-                    )
+        )
+        if final_evasion_retry_degraded:
+            final_text = mark_degraded(final_text)
 
+    delivery_audit = audit_delivery(final_text, mode="propose_final",
+        degraded=bool(propose_atl3_gate_result.get("degraded") or final_evasion_retry_degraded))
     _print("[逗福Tofu /propose 交卷] 最終提案：")
-    _print(final_text)
+    _print(render_delivery(delivery_audit))
 
     # 7. 寫 end 端點
     end_data = make_end_data(
@@ -1629,7 +1619,8 @@ def run_propose_mode(
         user_satisfaction="no_feedback",
         deviation_from_goal="",
     )
-    end_data["zone"] = confirm_mod.classify_zone(final_text)
+    end_data["delivery_audit"] = delivery_audit
+    end_data["zone"] = delivery_audit["zone"]
     end_data["propose_rounds"] = len(rounds_history)
     end_data["propose_submitted_early"] = submitted_early
     end_data["propose_interrupted_by_guardrail"] = interrupted_by_guardrail
@@ -1666,7 +1657,7 @@ def run_propose_mode(
 
     # 8. mark_hit + 護欄 + 畫像更新（同 default 模式）
     if pending_hit_ids:
-        store.mark_hit(pending_hit_ids, current_round=current_round)
+        store.mark_hit(pending_hit_ids, current_round=current_round, reactivate_pending=False)
     if guardrails is not None:
         guardrails.record_session()
     if profile_store:
@@ -1944,8 +1935,13 @@ def run_check_mode(
             )
             return False
 
+    # 白皮書 §8.1：/check 也完成本地查表；查核對象與私人畫像隔離，不注入歷史。
+    check_rows, _ = retrieve_top_k_endpoints(store.all(), user_input, top_k=DEFAULT_TOP_K)
+    _, _, check_lookup = pack_lookup(check_rows, categories=baseline_mod.ALLOWED_GAP_CATEGORIES)
+    check_lookup["injected_into_model"] = False
+
     # 3. 建立 session state（先寫檔，再呼叫 LLM，失敗時 state 仍可追溯）
-    session = check_mod.create_session(session_dir, user_content=user_input)
+    session = check_mod.create_session(session_dir, user_content=user_input, lookup_audit=check_lookup)
     session_id = session["session_id"]
 
     # 4. 呼叫 LLM 跑第一階段
@@ -1968,7 +1964,7 @@ def run_check_mode(
 
     # 6. 印出第一階段輸出（含選單；選單在 ISF prompt 裡就會帶出來）
     _print("[逗福Tofu /check] 第一階段（精緻快速摘要）：")
-    _print(stage1_output)
+    _print(render_delivery(audit_delivery(stage1_output, mode="check")))
     _print(
         "[逗福Tofu] 輸入數字接續："
         "1 = 完整報告；2 = 警示文字稿；3 = 結束。"
@@ -2050,7 +2046,7 @@ def run_check_followup(
             STAGE_WARNING: "警示文字稿",
         }[stage]
         _print(f"[逗福Tofu /check] {label}：")
-        _print(final_output)
+        _print(render_delivery(audit_delivery(final_output, mode="check")))
 
     # 寫入端點：start + end，mode='check'，不進 baseline（baseline 已排除）
     event_id = new_event_id()
@@ -2072,6 +2068,7 @@ def run_check_followup(
         "topic": confirm_mod.infer_topic(user_content, []),
         "check_session_id": session_id,
         "check_stage1_output": stage1_output,
+        "lookup_audit": session.get("lookup_audit", {"performed": False, "legacy_session": True}),
         # v4.1：/check 不走補位流程。
         "unresolved_gaps": [],
         "convergence_reason": None,
@@ -2084,7 +2081,8 @@ def run_check_followup(
         user_satisfaction="no_feedback",
         deviation_from_goal="",
     )
-    end_data["zone"] = confirm_mod.classify_zone(final_output)
+    end_data["delivery_audit"] = audit_delivery(final_output, mode="check")
+    end_data["zone"] = end_data["delivery_audit"]["zone"]
     end_data["check_final_stage"] = stage
     check_end_row = store.append_end(event_id=event_id, end_data=end_data)
     _print("[端點已記錄]")
@@ -2182,6 +2180,26 @@ def run_history_command(store: EndpointStore) -> None:
         _print(f"  {idx}. 目標：{goal}")
         _print(f"     結果：{result_short}{'…' if len(result) > len(result_short) else ''}")
         _print(f"     滿意度：{satisfaction_label}")
+
+
+def run_memory_command(store: EndpointStore, line: str = "/memory") -> None:
+    parts = line.split()
+    if len(parts) == 1:
+        rows = [r for r in store.all() if r.get("type") == "start"
+                and r.get("status") == "pending_confirmation"]
+        if not rows:
+            _print("[逗福Tofu] 目前沒有待確認的舊記憶。")
+        for row in rows:
+            sd = row.get("start_data") or {}
+            _print(f"{row['endpoint_id']} | {sd.get('user_input') or sd.get('goal', '')}")
+        return
+    if len(parts) != 3 or parts[1] not in {"confirm", "supersede"}:
+        _print("用法：/memory，或 /memory confirm|supersede <完整端點ID>")
+        return
+    status = "active" if parts[1] == "confirm" else "superseded"
+    changed = store.resolve_memory(parts[2], status)
+    _print(f"[逗福Tofu] 記憶狀態已更新為 {status}；原文與狀態歷史保留。" if changed
+           else "[逗福Tofu] 找不到該端點，未修改記憶。")
 
 
 def run_stats_command(store: EndpointStore) -> None:
@@ -2488,6 +2506,13 @@ def main(argv: list[str] | None = None) -> int:
     global _BATCH_MODE
     explicit_argv = argv is not None
     args = list(argv if explicit_argv else sys.argv[1:])
+    if "--help" in args or "-h" in args:
+        _print("用法：tofu [--batch] [--help] [--version]\n" + _render_help())
+        return 0
+    if "--version" in args:
+        _print("逗福Tofu 0.2.0b1")
+        return 0
+    _BATCH_MODE = "--batch" in args
     if "--batch" in args:
         _BATCH_MODE = True
         args = [a for a in args if a != "--batch"]
@@ -2521,10 +2546,14 @@ def main(argv: list[str] | None = None) -> int:
         _print("-" * 48)
 
     # 公測版後端：Claude（推薦 Haiku）。沒有 API key 時自動進入離線 fallback。
-    client = LLMClient(notifier=_print)
+    try:
+        client = create_client(notifier=_print, claude_class=LLMClient)
+    except ValueError as exc:
+        _print(f"[設定錯誤] {exc}")
+        return 2
 
     if client.fallback_mode:
-        _print("[逗福Tofu] 目前為離線模式，設定 CLAUDE_API_KEY 後可獲得 AI 驅動的回應。")
+        _print("[逗福Tofu] 目前為離線模式，設定所選後端的 API key 與模型後可獲得 AI 驅動的回應。")
 
     # 滿意度問答節奏降低：v3.0 從每 3 次改為每 10 次
     global SATISFACTION_INTERVAL
@@ -2576,6 +2605,9 @@ def main(argv: list[str] | None = None) -> int:
             continue
         if lowered == "/history":
             run_history_command(store)
+            continue
+        if lowered == "/memory" or lowered.startswith("/memory "):
+            run_memory_command(store, line)
             continue
         if lowered == "/stats":
             run_stats_command(store)
@@ -2691,5 +2723,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
 
+def cli() -> int:
+    return main(sys.argv[1:])
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli())

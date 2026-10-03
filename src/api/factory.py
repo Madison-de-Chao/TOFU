@@ -1,6 +1,6 @@
 """Explicit backend selection; model choice never migrates user memory."""
 import os
-from src.api.claude_client import LLMClient, MODEL_ID
+from src.api.claude_client import LLMClient
 
 
 def create_client(provider=None, *, notifier=None, claude_class=LLMClient):

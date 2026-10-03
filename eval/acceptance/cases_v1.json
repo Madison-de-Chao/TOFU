@@ -1,0 +1,1094 @@
+{
+  "schema_version": 1,
+  "suite_id": "tofu-v1-behavior-contracts",
+  "document_version": "v1",
+  "created_at": "2026-10-03",
+  "timezone": "Asia/Taipei",
+  "baseline_commit": "8bd2318014513c2df26383951da9855566cb3f45",
+  "status": "draft_specification",
+  "author_approval": "pending_review",
+  "data_origin": "synthetic",
+  "contains_live_results": false,
+  "scope_document": "../../docs/V1_PRODUCT_SCOPE_v1.md",
+  "evaluation_document": "../../docs/V1_ACCEPTANCE_PLAN_v1.md",
+  "notice": "Given/When/Then 規格資料，尚未接上自動執行器；相關既有測試不是本案例的執行結果。部分期望是 AI 工程提案，須依來源與決策依賴審閱。",
+  "cases": [
+    {
+      "id": "AC-01",
+      "title": "目標修正後保留其他限制",
+      "requirement": "R-01",
+      "priority": "critical",
+      "basis": [
+        "WP §3.4",
+        "WP §4.1",
+        "WP §8.1.2",
+        "AI 工程提案：修正歷程格式"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "brand-meetup",
+        "memory": [],
+        "mode": "default"
+      },
+      "steps": [
+        "使用者：我要辦三十人的品牌交流活動，預算五萬元，不要推銷感。",
+        "模型復述測試替身：你想藉活動提高品牌曝光。",
+        "使用者：不是對外曝光，是讓現有合作夥伴更熟悉彼此。",
+        "使用者確認修正後的理解，再要求交付方案。"
+      ],
+      "expected": [
+        "執行依據採合作夥伴關係經營；人數三十、預算五萬元、避免推銷感仍有效。",
+        "不以曝光數、媒體邀請、銷售轉換作為主要成果。",
+        "保留原話與修正來源，舊模型復述不覆蓋新目標。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v42_dedup_facts.py",
+        "tests/test_raw_input_passthrough.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-02",
+      "title": "同案預算更新不丟失其他條件",
+      "requirement": "R-01",
+      "priority": "critical",
+      "basis": [
+        "WP §4.1",
+        "WP §8.1.2",
+        "AI 工程提案：欄位替換與繼承"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "brand-meetup",
+        "confirmed": {
+          "budget_twd": 50000,
+          "attendees": 30,
+          "excluded": [
+            "推銷活動"
+          ]
+        }
+      },
+      "steps": [
+        "使用者：預算改成三萬元，其他不變。",
+        "確認後要求更新方案。"
+      ],
+      "expected": [
+        "有效預算改為三萬元，三十人與排除項不變。",
+        "五萬元保留為舊值，不同時列成兩個有效預算。",
+        "使用者主動改需求不被記為危險收斂或 AI 偏離。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v42_dedup_facts.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-03",
+      "title": "不重問已回答的關鍵資訊",
+      "requirement": "R-01",
+      "priority": "high",
+      "basis": [
+        "WP §8.1.2",
+        "WP C.2"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "brand-meetup",
+        "confirmed": {
+          "budget_twd": 30000,
+          "attendees": 30
+        }
+      },
+      "steps": [
+        "使用者：三萬元和三十人都已確定，幫我比較兩種活動形式。"
+      ],
+      "expected": [
+        "不再次要求提供預算或人數。",
+        "僅針對會改變比較結果的未明資訊補位。",
+        "回應比較活動形式，保留使用者已給條件。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v42_dedup_facts.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-04",
+      "title": "指稱不明時不擅選對象",
+      "requirement": "R-01",
+      "priority": "critical",
+      "basis": [
+        "WP §4.1",
+        "WP §8.1.2",
+        "AI 工程提案：歧義處理"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "invitees",
+        "confirmed": {
+          "people": [
+            "甲客戶",
+            "乙設計師"
+          ]
+        }
+      },
+      "steps": [
+        "使用者：他不參加了，幫我調整安排。"
+      ],
+      "expected": [
+        "指出「他」的對象未明，提出一次具體釐清或保留待定部分。",
+        "在釐清前，不擅自將甲或乙標成不參加。",
+        "不把不確定推測寫成已確認事件。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-05",
+      "title": "理解需求不被改成執行指令",
+      "requirement": "R-01",
+      "priority": "high",
+      "basis": [
+        "WP §4.1",
+        "AI 工程提案：尊重諮詢邊界"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "format-comparison",
+        "mode": "default"
+      },
+      "steps": [
+        "使用者：我只想理解工作坊與交流晚宴的差別，先不要替我排時程。"
+      ],
+      "expected": [
+        "比較兩種形式及其適用情境。",
+        "不產生使用者未要求的執行時程作為主回答。",
+        "適用的諮詢例外可追溯，不以缺期限為由強迫改成工單。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_intent_mode.py",
+        "tests/test_intent_routing_integration.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-06",
+      "title": "快捷執行不等於同意長期推論",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "WP §3.6",
+        "WP C.9",
+        "CONTRIBUTING 確認後才記",
+        "AI 工程提案 D-06"
+      ],
+      "decision_dependencies": [
+        "D-06"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "quiet-event",
+        "mode": "free",
+        "profile": []
+      },
+      "steps": [
+        "使用者：/free 這次活動不要放音樂，幫我列三個替代安排。",
+        "模型測試替身推測：你是不喜歡音樂的人。"
+      ],
+      "expected": [
+        "依 D-06 裁決保存快捷模式原話與其來源。",
+        "未獲確認的「不喜歡音樂」不能成為已確認長期偏好。",
+        "下個無關案件不能以此推論排除所有音樂活動。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-07",
+      "title": "單次活動限制不污染長期偏好",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "WP §3.6",
+        "AI 工程提案：案件作用域"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "partner-dinner",
+        "mode": "default",
+        "profile": []
+      },
+      "steps": [
+        "使用者明確確認：這次只邀合作夥伴，不邀媒體。",
+        "建立不同案件 product-launch：請規劃新品對外發表，媒體邀請另行討論。"
+      ],
+      "expected": [
+        "保留 partner-dinner 的排除項及案件範圍。",
+        "不生成「使用者永久排斥媒體」的已確認偏好。",
+        "product-launch 不自動繼承前案的排除項。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_user_profile.py",
+        "tests/test_baseline_semantics.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-08",
+      "title": "檢索命中不自動確認舊記憶",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "WP §8.1.5",
+        "既有工程決定：正文優先"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "建立活動偏好端點；標記 round 0 命中，再於 round 100 冷卻為 pending_confirmation。"
+      },
+      "steps": [
+        "在生產檢索路徑命中該端點，不輸入任何確認指令。"
+      ],
+      "expected": [
+        "端點仍為 pending_confirmation。",
+        "引用時可辨識其待確認狀態。",
+        "不得生成來源為 user_decision 的虛假確認歷程。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-09",
+      "title": "停用記憶保留原文並排除有效檢索",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "WP §8.1.5"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "建立同一 event_id 的 start/end 音樂偏好端點，另建無關活動端點。"
+      },
+      "steps": [
+        "使用者：/memory supersede <音樂偏好端點 ID>",
+        "重新開啟資料檔，再查詢音樂偏好。"
+      ],
+      "expected": [
+        "目標 start/end 都為 superseded，狀態歷程記錄 user_decision。",
+        "原始內容仍存在，無關事件未改動。",
+        "一般有效記憶檢索不把目標端點注入為仍適用的前提。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-10",
+      "title": "確認記憶後持久化整個事件",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "WP §8.1.5"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "分別在 JSON 與 JSONL 建立 pending_confirmation 的事件與一筆無關事件。"
+      },
+      "steps": [
+        "使用者：/memory confirm <目標端點 ID>",
+        "重新開啟檔案。"
+      ],
+      "expected": [
+        "整個目標事件恢復 active，更新引用時間與輪數。",
+        "狀態歷程可追溯，原話及回答不被改寫。",
+        "無關事件維持不變，兩種儲存格式結果一致。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-11",
+      "title": "不存在的記憶 ID 不造成寫入",
+      "requirement": "R-02",
+      "priority": "critical",
+      "basis": [
+        "AI 工程提案：非破壞性錯誤處理"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "JSON 與 JSONL 各有一筆既存事件，保存完整檔案位元組。"
+      },
+      "steps": [
+        "使用者：/memory confirm missing-id"
+      ],
+      "expected": [
+        "回報未找到，不能顯示已確認成功。",
+        "檔案位元組保持一致。",
+        "不新增空事件或狀態歷程。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-12",
+      "title": "歷史傳輸受預算限制且可追溯",
+      "requirement": "R-03",
+      "priority": "high",
+      "basis": [
+        "WP §3.5",
+        "WP C.1",
+        "既有工程預算：9000 字元"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "至少四十筆端點，包含長文字與待確認紀錄，保留寫入前後快照。"
+      },
+      "steps": [
+        "執行一般生成路徑的查表與 pack_lookup。"
+      ],
+      "expected": [
+        "選取最多三十筆，編碼歷史總長度含分隔符不超過九千字元。",
+        "可追溯被選、略過與待確認 ID，未修改原始端點。",
+        "不將此限制宣稱為整個 prompt、token 或金額上限。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-13",
+      "title": "歷史無資料不等於本次未提供",
+      "requirement": "R-03",
+      "priority": "high",
+      "basis": [
+        "WP §8.1.1",
+        "WP §8.1.2",
+        "AI 工程提案：未知分類"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "new-event",
+        "memory": []
+      },
+      "steps": [
+        "使用者：預算三萬元、三十人，請比較工作坊與交流晚宴。"
+      ],
+      "expected": [
+        "仍執行查表並留下空結果的 audit。",
+        "不因歷史沒有預算紀錄就再次要求預算。",
+        "區分已知本次條件與歷史未知，其他缺口按其實際必要性處理。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-14",
+      "title": "裸年份不能支持事實標籤",
+      "requirement": "R-04",
+      "priority": "critical",
+      "basis": [
+        "WP §4.2",
+        "WP §4.3"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "模型輸出：Zone A：根據 2023 年研究，活動成功率是 98%。"
+      },
+      "steps": [
+        "輸出經過交付前 audit，再顯示給使用者。"
+      ],
+      "expected": [
+        "該主張不得保留為有來源的 Zone A。",
+        "標記來源不足與待驗證，不編造研究名稱或網址。",
+        "留存模型原文與降級原因。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-15",
+      "title": "有網址不等於已讀與已查證",
+      "requirement": "R-04",
+      "priority": "critical",
+      "basis": [
+        "WP §4.2 誠實原則",
+        "AI 工程提案：來源狀態分層"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "模型輸出帶 https://example.com/report；未配置或呼叫任何外部查核服務。"
+      },
+      "steps": [
+        "執行來源格式檢查與最後交付。"
+      ],
+      "expected": [
+        "可以記來源格式可定位，但外部查核狀態為未執行。",
+        "不顯示已讀來源、來源支持結論或獨立驗證成功。",
+        "不以自己生成的引用文字作為第三方證據。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-16",
+      "title": "一個來源不升級同句其他主張",
+      "requirement": "R-04",
+      "priority": "critical",
+      "basis": [
+        "WP §4.3",
+        "AI 工程提案：主張粒度"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "fixture": "合成來源 S1 僅支持場地容納三十人，不含營收；模型輸出：來源 S1 說可容納三十人，所以營收一定翻倍。"
+      },
+      "steps": [
+        "使用本地合成來源，不進行外部連線；執行主張拆分與交付。"
+      ],
+      "expected": [
+        "容量與營收是兩個主張；來源支持範圍不被擴大。",
+        "營收翻倍不被標成已驗證事實。",
+        "不確定的主張需降級／阻擋，不能只靠整行有網址判通過。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-17",
+      "title": "合格 RBH 可被外部觀察與反駁",
+      "requirement": "R-04",
+      "priority": "high",
+      "basis": [
+        "WP §4.4"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_human",
+      "given": {
+        "fixture": "待測假設：在同一活動十位測試者的兩輪試排中，小組任務比自由交流帶來更多新合作對話。"
+      },
+      "steps": [
+        "要求輸出假設與 RBH 四欄。"
+      ],
+      "expected": [
+        "四欄都有與本假設相關的內容：可觀測行為、觸發情境、可推翻的觀察、誰在何時如何記錄。",
+        "例如對話次數未增加即可修正假設，不要求使用者先認同結論。",
+        "試排規劃與實際觀察分開，不能把尚未測試的預測寫成結果。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_confirmation.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-18",
+      "title": "空泛或缺欄 RBH 不冒充驗收通過",
+      "requirement": "R-04",
+      "priority": "critical",
+      "basis": [
+        "WP §4.4",
+        "AI 工程提案：部分輸出失敗處理"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "fixture": "模型推測：他一定會答應；反例填「有不同情況時再調整」，未提供蒐證方式。"
+      },
+      "steps": [
+        "在允許的既有重試預算內嘗試補正，替身仍回傳相同不合格內容。"
+      ],
+      "expected": [
+        "缺欄／已知空泛反例不通過結構檢查，語意有效性另留人工評分。",
+        "不交付為合格洞察；明說資訊不足，保留其他合格內容。",
+        "不編造當事人的行為證據，不用 ATL-3 的降級標籤繞過 ATL-1。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-19",
+      "title": "一般模式重寫後重新驗收最後版本",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.2",
+        "WP §8.1.3",
+        "AI 工程提案：統一交付版本"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "default/free 執行模式：第一次輸出通過 ATL-3 但命中迴避句型；第二次重寫缺產出物或驗收條件。"
+      },
+      "steps": [
+        "經過一般模式的迴避重寫路徑，捕捉每次產生、驗收與最後顯示的文字。"
+      ],
+      "expected": [
+        "最後一次重寫必須接受適用驗收。",
+        "不能沿用第一次的 passed 將第二次當合格成果交付。",
+        "最終顯示文字、audit 所指向的版本與持久化紀錄一致。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v07_atl3_gate_integration.py",
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-20",
+      "title": "各重寫原因共用最終生成預算",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.2",
+        "WP C.5",
+        "AI 工程提案：共享重寫預算"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "適用 ATL-3 的最終生成階段；替身輪流觸發缺產出物與迴避句型，不含 RBH 推測性洞察。"
+      },
+      "steps": [
+        "計數所有最終生成與重寫；初次加最多兩次修正。",
+        "第三次仍未通過適用檢查。"
+      ],
+      "expected": [
+        "最終生成階段最多三次，不因不同重試原因另開無限或額外迴圈。",
+        "未通過則如實降級，Zone C 立場不被假裝改成事實。",
+        "分開記錄最終生成次數、傳輸重試與整次互動其他呼叫，不宣稱整個 /propose 只有三次。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v07_atl3_gate_integration.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-21",
+      "title": "使用者指出理解錯誤時停止錯誤方向",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.1 CIP-X",
+        "AI 工程提案：復原與危險阻斷分流"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "partner-meetup",
+        "fixture": "目前 AI 錯把需求當成曝光活動。"
+      },
+      "steps": [
+        "使用者：你理解錯了，我沒有要曝光，先別再排媒體邀請。"
+      ],
+      "expected": [
+        "停止繼續生成媒體邀請安排，修正或復述所理解的目標。",
+        "保留既有紀錄，不把重置理解實作成刪除所有記憶。",
+        "不因這句對 AI 的不滿就轉成危險拒絕或情緒冷卻。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-22",
+      "title": "同為 Zone C 的相反立場仍可識別",
+      "requirement": "R-05",
+      "priority": "high",
+      "basis": [
+        "WP §4.5 ATL-4",
+        "WP C.6",
+        "AI 工程提案 D-03"
+      ],
+      "decision_dependencies": [
+        "D-03"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "data-sharing",
+        "fixture": "同一使用者、同一資料範圍與時間條件，舊陳述為支持公開資料。"
+      },
+      "steps": [
+        "使用者：我反對公開這份資料。",
+        "分支 A：使用者接著明說我改變想法了；分支 B：沒有解釋改變原因。"
+      ],
+      "expected": [
+        "兩句都是 Zone C 不足以判為語意一致。",
+        "依 D-03 分別處理明示更新與待釐清差異。",
+        "並列原始陳述及其範圍，不把任何一個時間點永久定為真正立場。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v07_atl4_zone_history.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-23",
+      "title": "混合受益方向不由人名直接決定",
+      "requirement": "R-03",
+      "priority": "high",
+      "basis": [
+        "WP 第四章 檢索邏輯",
+        "WP §8.1.1",
+        "WP C.1",
+        "AI 工程提案 D-04"
+      ],
+      "decision_dependencies": [
+        "D-04"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "family-trip",
+        "memory": []
+      },
+      "steps": [
+        "使用者：我想幫媽媽安排旅行，也希望自己不要太累。"
+      ],
+      "expected": [
+        "依 D-04 判定主導目的或保留未知，不能只因出現媽媽便固定為他人導向。",
+        "不得把未知偷偷補成自己或他人。",
+        "檢索若因主導方向改變，留存選取依據供查驗。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-24",
+      "title": "慶祝語氣不被自動判為需要停止",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.5 情緒三軸",
+        "AI 工程提案 D-01/D-02"
+      ],
+      "decision_dependencies": [
+        "D-01",
+        "D-02"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "celebration",
+        "mode": "free"
+      },
+      "steps": [
+        "使用者：幹！終於成功了，爽！！！請幫我整理成果。"
+      ],
+      "expected": [
+        "依 D-01／D-02 處理情緒線索；髒話和驚嘆號不足以單獨判為心情差。",
+        "不只因這些線索停止明確的成果整理任務。",
+        "不能宣稱心理狀態已被客觀量測。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v07_emotion_cooling.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-25",
+      "title": "邏輯糾正不被情緒推測覆蓋",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.5 情緒三軸",
+        "AI 工程提案 D-02"
+      ],
+      "decision_dependencies": [
+        "D-02"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "source-correction"
+      },
+      "steps": [
+        "使用者：我沒有生氣，只是在指出你引用錯來源。請修正引用。"
+      ],
+      "expected": [
+        "先處理引用錯誤，不能僅命中「生氣」就把使用者情緒當定論。",
+        "依 D-02 界定語氣調整與流程介入權限。",
+        "保留否定詞及使用者修正，不能以冷卻取代修錯。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_v07_emotion_cooling.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-26",
+      "title": "未知、中性及他人引述分開",
+      "requirement": "R-05",
+      "priority": "high",
+      "basis": [
+        "WP §4.5",
+        "AI 工程提案 D-01"
+      ],
+      "decision_dependencies": [
+        "D-01"
+      ],
+      "readiness": "blocked_by_decision",
+      "verification": "contract_and_live",
+      "given": {
+        "case_id": "emotion-subject"
+      },
+      "steps": [
+        "使用者：客戶說他很生氣；我目前只想整理報價。"
+      ],
+      "expected": [
+        "引述客戶的情緒不能寫成使用者的情緒。",
+        "使用者未提供的控制感等狀態記未知，不默認中性。",
+        "任何推測保留對象、來源與作用時間，不以單一標籤覆蓋全部人物。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-27",
+      "title": "API 失敗不冒充完成或驗收通過",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "WP §4.2 CIP",
+        "AI 工程提案：錯誤契約"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "分別模擬認證失敗、逾時、格式損壞及空回應；不得使用真實付費 API。"
+      },
+      "steps": [
+        "執行一次生成，檢查 UI、錯誤狀態、audit、呼叫次數與持久化紀錄。"
+      ],
+      "expected": [
+        "回報真實失敗，未產出內容不記為成功成果或 ATL 通過。",
+        "重試遵守既有有界策略；認證錯誤不無限重試。",
+        "錯誤訊息不洩漏憑證或完整私密 prompt，後續可重新嘗試。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py",
+        "tests/test_v07_review_fixes.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-28",
+      "title": "明示離線不得觸發背景付費呼叫",
+      "requirement": "R-05",
+      "priority": "critical",
+      "basis": [
+        "既有明確離線介面",
+        "WP §4.2 誠實原則"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract",
+      "given": {
+        "fixture": "環境有合成 API key，但 TOFU_PROVIDER=offline；攔截所有網路呼叫。"
+      },
+      "steps": [
+        "完成一輪互動並執行會觸發詞性標記的寫入路徑。"
+      ],
+      "expected": [
+        "模型 SDK 與背景詞性標記均沒有外部 API 呼叫。",
+        "介面明示離線或模擬性質。",
+        "此結果不能登記成真實模型效益分數。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-29",
+      "title": "切換後端保留記憶並記錄實際模型",
+      "requirement": "R-02",
+      "priority": "high",
+      "basis": [
+        "WP §3.4 模型中立",
+        "AI 工程提案：後端驗收"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "fixture": "先以一個已配置後端保存確認過的活動限制；保留記憶快照。"
+      },
+      "steps": [
+        "切換到另一個已配置後端，以同一使用者及同一案件繼續任務。",
+        "合約測試用替身；真實後端驗收須另取得有效環境設定與執行預算。"
+      ],
+      "expected": [
+        "不搬移、刪除或無聲改寫既有記憶。",
+        "新後端使用正確案件限制，記錄實際模型識別。",
+        "每個宣稱支援的後端分別保存真實執行證據；替身通過不等於 live 通過。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py",
+        "tests/test_claude_client.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    },
+    {
+      "id": "AC-30",
+      "title": "查核模式不注入私人歷史或假稱外部查核",
+      "requirement": "R-03",
+      "priority": "critical",
+      "basis": [
+        "WP §4.1 /check",
+        "WP §4.2",
+        "既有 /check 資料界線"
+      ],
+      "decision_dependencies": [],
+      "readiness": "ready_for_implementation",
+      "verification": "contract_and_live",
+      "given": {
+        "fixture": "端點庫中有合成的私人案件內容；外部搜尋服務未配置。"
+      },
+      "steps": [
+        "使用者：/check 這段活動消息是否可信？",
+        "檢查查表紀錄、模型請求、最後輸出與後續階段。"
+      ],
+      "expected": [
+        "本地查表動作有 audit，但私人歷史不注入查核模型請求。",
+        "只能如實提供內容分析，不能表示已查過外部網站或確認消息真偽。",
+        "後續查核階段沿用相同資料界線。"
+      ],
+      "evidence_required": [
+        "完整互動逐字紀錄",
+        "最終輸出與對應 audit",
+        "執行前後相關記憶快照"
+      ],
+      "related_existing_tests": [
+        "tests/test_whitepaper_completion.py",
+        "tests/test_v06_check.py"
+      ],
+      "execution_status": "not_run",
+      "run_ids": []
+    }
+  ]
+}

@@ -539,17 +539,18 @@ class EndpointStore:
             if target is None:
                 return False, False
             event_id = target.get("event_id")
+            now_iso = _now_iso()
+            current_round = sum(r.get("type") == "start" for r in data)
             for row in data:
                 if row is target or (event_id and row.get("event_id") == event_id):
                     previous = row.get("status", "active")
                     row.setdefault("status_history", []).append({
-                        "from": previous, "to": status, "source": "user_decision", "timestamp": _now_iso(),
+                        "from": previous, "to": status, "source": "user_decision", "timestamp": now_iso,
                     })
                     row["status"] = status
                     if status == "active":
-                        row["last_referenced"] = _now_iso()
-                        row["round_last_referenced"] = sum(r.get("type") == "start" for r in data)
-            return True, True
+                        row["last_referenced"] = now_iso
+                        row["round_last_referenced"] = current_round
 
         return self._rewrite_locked(mutate)
 

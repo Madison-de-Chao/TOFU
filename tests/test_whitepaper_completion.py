@@ -95,6 +95,7 @@ class TransportTests(unittest.TestCase):
                 with self.assertRaises(LLMClientError):
                     c._call("s", "u")
 
+    def test_invalid_remote_plaintext_or_credentials_rejected(self):
         for url in ["http://example.com/v1", "https://user:pass@example.com/v1", "https://example.com/v1?k=secret"]:
             with self.subTest(url=url), self.assertRaises(ValueError):
                 self.client(base_url=url)
@@ -201,6 +202,53 @@ class FlowTests(unittest.TestCase):
         self.assertFalse(self.store.resolve_memory("missing", "active"))
         with self.assertRaises(ValueError):
             self.store.resolve_memory("missing", "delete")
+
+    def test_memory_decision_persists_entire_event_in_both_storage_formats(self):
+        for suffix in ("json", "jsonl"):
+            for status in ("active", "superseded"):
+                with self.subTest(format=suffix, status=status):
+                    path = Path(self.tmp.name) / f"decision-{status}-{suffix}.{suffix}"
+                    store = EndpointStore(str(path))
+                    start_data = {"user_input": "保留我的原話", "goal": "音樂"}
+                    end_data = {"result": "保留原始回答"}
+                    target = store.append_start(event_id="target", start_data=start_data)
+                    store.append_end(event_id="target", end_data=end_data)
+                    store.append_start(event_id="unrelated", start_data={"goal": "旅行"})
+                    store.mark_hit([target["endpoint_id"]], current_round=0)
+                    store.apply_cooldown(current_round=100)
+                    untouched = [r for r in store.all() if r["event_id"] == "unrelated"]
+                    previous_status = {r["endpoint_id"]: r["status"] for r in store.all()}
+                    self.assertEqual(previous_status[target["endpoint_id"]], "pending_confirmation")
+
+                    timestamp = "2026-10-03T10:00:00+00:00"
+                    with patch("src.middleware.endpoint._now_iso", return_value=timestamp):
+                        self.assertIs(store.resolve_memory(target["endpoint_id"], status), True)
+
+                    persisted = EndpointStore(str(path)).all()
+                    event = [r for r in persisted if r["event_id"] == "target"]
+                    self.assertEqual(len(event), 2)
+                    self.assertEqual([r for r in persisted if r["event_id"] == "unrelated"], untouched)
+                    self.assertEqual(next(r for r in event if r["type"] == "start")["start_data"], start_data)
+                    self.assertEqual(next(r for r in event if r["type"] == "end")["end_data"], end_data)
+                    for row in event:
+                        self.assertEqual(row["status"], status)
+                        self.assertEqual(row["status_history"][-1], {
+                            "from": previous_status[row["endpoint_id"]], "to": status,
+                            "source": "user_decision", "timestamp": timestamp,
+                        })
+                        if status == "active":
+                            self.assertEqual(row["last_referenced"], timestamp)
+                            self.assertEqual(row["round_last_referenced"], 2)
+
+    def test_unknown_memory_decision_preserves_existing_file(self):
+        for suffix in ("json", "jsonl"):
+            with self.subTest(format=suffix):
+                path = Path(self.tmp.name) / f"missing-{suffix}.{suffix}"
+                store = EndpointStore(str(path))
+                store.append_start(event_id="existing", start_data={"goal": "音樂"})
+                before = path.read_bytes()
+                self.assertIs(store.resolve_memory("missing", "active"), False)
+                self.assertEqual(path.read_bytes(), before)
 
     def test_free_audits_before_print_and_persists_same_audit(self):
         c = Mock(fallback_mode=True)

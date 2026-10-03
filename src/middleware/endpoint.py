@@ -551,6 +551,7 @@ class EndpointStore:
                     if status == "active":
                         row["last_referenced"] = now_iso
                         row["round_last_referenced"] = current_round
+            return True, True
 
         return self._rewrite_locked(mutate)
 
